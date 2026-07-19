@@ -3,12 +3,9 @@
 // mạng, bỏ qua cache hoàn toàn) — tránh rủi ro hiện dữ liệu báo cáo CŨ mà tưởng là mới. Cache
 // app-shell giúp mở lại gần như tức thời (đúng yêu cầu "trải nghiệm như app thông thường") + vẫn
 // thấy được giao diện (dù chưa tải được dữ liệu) khi mất mạng tạm thời.
-var CACHE_NAME = 'bc-tdc-shell-v3'; // Tăng version lần nữa (v2 -> v3) — bản này sửa 3 lỗi CHỨC
-                                     // NĂNG thật (logout để sót cờ lịch sử gây back() lạc lần đăng
-                                     // nhập sau, cache Thống kê BC/Danh sách DA kẹt vĩnh viễn nếu
-                                     // gặp đúng 1 lần lỗi mạng, toast bị lệch khi chỉnh zoom) — cần
-                                     // áp dụng ngay cho ai đã cài app từ trước, không đợi cơ chế
-                                     // cập nhật service worker thông thường (có thể mất vài lần mở).
+var CACHE_NAME = 'bc-tdc-shell-v4'; // v3 -> v4 — bỏ hẳn cache "hiện cũ trước" cho Tab Dự án/Bộ
+                                     // phận (rủi ro hiện báo cáo lỗi thời), đổi logo, chuyển nút
+                                     // zoom — cần áp dụng ngay cho ai đã cài app từ trước.
 var SHELL_FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (event) {

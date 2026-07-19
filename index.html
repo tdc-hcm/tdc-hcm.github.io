@@ -451,7 +451,7 @@
       <div id="danhsachda-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
     </div>
 
-    <footer class="foot-note">Nội bộ công ty · dữ liệu chỉ để xem</footer>
+    <footer class="foot-note">Dữ liệu nội bộ của TDC - Không chia sẻ trong mọi trường hợp</footer>
     <div class="logout-link" id="logout-link">Đăng xuất / đổi mật khẩu</div>
   </div>
 
@@ -562,16 +562,15 @@
     });
   }
 
-  // Cache dữ liệu CHỈ ĐỌC (overview/dept-list/dept-map/tkbc/project-list — KHÔNG cache 2 tab có
-  // luồng chỉnh sửa Gửi báo cáo/Ưu tiên vì có pendingEdits/pendingPriority phức tạp, hiện dữ liệu
-  // "tưởng mới nhưng thật ra cũ" ở đó rủi ro hơn nhiều so với lợi ích) vào localStorage — hiện
-  // NGAY dữ liệu LẦN TRƯỚC trong lúc chờ mạng trả lời, thay vì luôn phải thấy khung skeleton trống
-  // trơn mỗi lần mở app — user yêu cầu 2026-07-20: "muốn cache vẫn lưu và không load lại". LƯU Ý:
-  // đây KHÔNG ngăn được Android tự giải phóng tiến trình nền (vuốt app ra khỏi danh sách gần
-  // đây/thiếu RAM buộc tải lại từ đầu) — hành vi đó do hệ điều hành quản lý bộ nhớ, không phải thứ
-  // 1 trang web có thể tự khống chế (áp dụng cho MỌI PWA, không riêng app này) — cache này chỉ làm
-  // cho LẦN TẢI LẠI (dù do đâu) hiện nội dung tức thời từ lần xem gần nhất, rồi âm thầm thay bằng
-  // dữ liệu mới khi mạng trả lời xong (không có bước tải lại thủ công nào khác ngoài đúng như vậy).
+  // Cache "hiện cũ trước, âm thầm thay mới sau" — CHỈ còn dùng cho Thống kê BC/Danh sách DA (xem
+  // showTkbcTab/showDanhSachDaTab). KHÔNG áp dụng cho overview/dept-list/dept-map (Tab Dự
+  // án/Bộ phận) nữa — bỏ theo yêu cầu user 2026-07-20: 2 tab đó hiện NỘI DUNG BÁO CÁO thật, hiện
+  // tạm dữ liệu chưa xác nhận là mới nhất có rủi ro thật (người dùng có thể đọc/tin nhầm báo cáo đã
+  // lỗi thời nếu bản mới tải lâu hoặc lỗi mạng) — 2 tab đó giờ LUÔN chờ dữ liệu THẬT mới nhất mới
+  // hiện (xem enterMain()). Thống kê BC/Danh sách DA là dữ liệu thống kê/danh mục, rủi ro thấp hơn
+  // nhiều nên vẫn giữ cache để mở lại tức thời — không áp dụng cho Gửi báo cáo/Ưu tiên (có
+  // pendingEdits/pendingPriority phức tạp, hiện dữ liệu "tưởng mới nhưng thật ra cũ" ở đó rủi ro
+  // hơn nhiều so với lợi ích).
   var CACHE_PREFIX = 'bc_webview_cache_';
   function saveCache_(key, val) {
     try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(val)); } catch (e) { /* đầy/bị chặn -> bỏ qua */ }
@@ -586,23 +585,25 @@
   function ensureDeptList(cb) { if (deptListResp) cb(); else deptListCbs.push(cb); }
   function ensureDeptMap(cb) { if (deptMapResp) cb(); else deptMapCbs.push(cb); }
 
-  // 3 hàm dưới đây LUÔN tự gọi lại server (không có bước "đã có dữ liệu thì bỏ qua") — nếu
-  // overviewResp/deptListResp/deptMapResp đã có sẵn từ cache (hydrateCacheOnLoad_(), lúc mở app)
-  // TRƯỚC KHI hàm này chạy thì ensureX() đã gọi callback NGAY LẬP TỨC bằng dữ liệu CŨ đó rồi
-  // (overviewCbs vẫn rỗng ở đây) — phải TỰ vẽ lại khi có bản MỚI về, không thì màn hình kẹt mãi ở
-  // dữ liệu cache dù bộ nhớ đã có bản mới hơn.
+  // 3 hàm dưới đây KHÔNG hydrate/lưu cache localStorage (bỏ theo yêu cầu user 2026-07-20 — Tab "Dự
+  // án"/"Bộ phận" luôn phải là dữ liệu MỚI XÁC NHẬN, không hiện tạm nội dung chưa chắc còn đúng).
+  // Vẫn cần "hadCbs" bên dưới cho 1 tình huống KHÁC (không liên quan cache): hàm này có thể được
+  // gọi lại từ 1 luồng NỀN không do người dùng đang xem tab đó kích hoạt — ví dụ doSavePriority()
+  // gọi lại loadOverview() sau khi lưu ưu tiên xong trong khi người dùng đã tự chuyển sang Tab Dự
+  // án từ trước (ensureOverview() lúc đó đã render ngay bằng dữ liệu CŨ HƠN, không phải cache, mà
+  // là lần tải hợp lệ trước đó) — khi bản MỚI về, overviewCbs rỗng (không ai đang chờ) nên phải TỰ
+  // vẽ lại, không thì màn hình kẹt ở bản trước khi lưu ưu tiên dù bộ nhớ đã có bản mới hơn.
   function loadOverview() {
     var hadCbs = overviewCbs.length > 0;
     callServer('webviewGetProjectsOverview', [currentPassword])
       .then(function (res) {
         overviewResp = res;
-        if (res.ok) saveCache_('overview', res);
         var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs);
         if (!hadCbs && !cbs.length && currentTab === 'projects') renderProjectsFiltered();
-        refreshDeptDetailIfOpen_(); // Đang xem chi tiết 1 bộ phận (Tab Bộ phận) bằng dữ liệu cache cũ -> vẽ lại bằng bản MỚI này (không thì kẹt mãi ở dữ liệu cũ, lỗi Reviewer phát hiện 2026-07-20)
+        refreshDeptDetailIfOpen_(); // Đang xem chi tiết 1 bộ phận -> vẽ lại bằng bản mới này nếu có thay đổi
       })
       .catch(function (err) {
-        if (overviewResp && overviewResp.ok) return; // Đã có cache đang hiện -> giữ nguyên, bỏ qua lỗi làm mới lần này
+        if (overviewResp && overviewResp.ok) return; // Đã có bản hợp lệ trong phiên này -> giữ nguyên, chỉ bỏ qua lần làm mới lỗi mạng này (không phải cache cũ qua nhiều phiên)
         overviewResp = { ok: false, error: 'Lỗi kết nối: ' + err.message };
         var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs);
       });
@@ -613,7 +614,6 @@
     callServer('webviewGetDepartmentList', [currentPassword])
       .then(function (res) {
         deptListResp = res;
-        if (res.ok) saveCache_('deptList', res);
         var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs);
         if (!hadCbs && !cbs.length && currentTab === 'departments' && $('dept-detail-area').style.display === 'none') renderDepartmentGrid();
       })
@@ -628,7 +628,6 @@
     callServer('webviewGetProjectDepartmentMap', [currentPassword])
       .then(function (res) {
         deptMapResp = res;
-        if (res.ok) saveCache_('deptMap', res);
         var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs);
         refreshDeptDetailIfOpen_(); // Cùng lý do ở loadOverview() — Bộ phận đang xem có thể cần deptMap để lọc (3 bộ phận Thiết kế)
       })
@@ -926,17 +925,15 @@
     if (mainEntered) { showView('view-main'); return; }
     mainEntered = true;
     showView('view-main');
-    // Hiện NGAY dữ liệu lần trước từ localStorage (nếu có) trong lúc chờ mạng trả lời — trước khi
-    // gọi loadOverview()/loadDeptList()/... bên dưới, để ensureX() thấy sẵn dữ liệu và vẽ ngay lập
-    // tức thay vì luôn phải qua khung xương trống trơn trước (user yêu cầu 2026-07-20: "muốn cache
-    // vẫn lưu và không load lại" — không ngăn được Android tự giải phóng tiến trình nền, nhưng làm
-    // MỖI LẦN TẢI LẠI (dù do đâu) hiện được nội dung tức thời).
-    var cachedOverview = loadCache_('overview');
-    if (cachedOverview && cachedOverview.ok) overviewResp = cachedOverview;
-    var cachedDeptList = loadCache_('deptList');
-    if (cachedDeptList && cachedDeptList.ok) deptListResp = cachedDeptList;
-    var cachedDeptMap = loadCache_('deptMap');
-    if (cachedDeptMap && cachedDeptMap.ok) deptMapResp = cachedDeptMap;
+    // KHÔNG hydrate overview/deptList/deptMap từ cache nữa (đã bỏ theo yêu cầu user 2026-07-20:
+    // hiện dữ liệu CŨ ngay trong lúc chờ có rủi ro thật — nếu bản MỚI tải lâu hoặc lỗi mạng, người
+    // dùng có thể đọc/tin vào đúng NỘI DUNG BÁO CÁO đã lỗi thời mà không biết, ví dụ nhóm "CÁC DỰ
+    // ÁN ƯU TIÊN" hay nội dung 1 báo cáo đã đổi nhưng màn hình vẫn hiện bản cũ). Tab "Dự án" và "Bộ
+    // phận" giờ LUÔN hiện khung xương (skeleton, đã có animation pulse sẵn) cho tới khi có dữ liệu
+    // THẬT mới nhất — không có trạng thái trung gian nào hiện nội dung chưa xác nhận là mới nhất.
+    // Tab "Thống kê BC"/"Danh sách DA" (dữ liệu thống kê/danh mục, không phải nội dung báo cáo cần
+    // quyết định theo — rủi ro thấp hơn nhiều) VẪN giữ cơ chế hiện cache cũ ngay rồi âm thầm thay
+    // bằng bản mới (tkbcNeedsRefresh/projectListNeedsRefresh bên dưới, không đổi).
     var cachedTkbc = loadCache_('tkbc');
     if (cachedTkbc && cachedTkbc.ok) { tkbcResp = cachedTkbc; tkbcNeedsRefresh = true; }
     var cachedProjectList = loadCache_('projectList');
