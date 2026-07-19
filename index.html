@@ -63,7 +63,12 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+  /* Chặn cử chỉ "vuốt ngang để lùi/tiến trang" của Chrome trên Android (đây mới là nguyên nhân
+     thật của việc "vuốt sang ngang thì app bị thoát" — user phản ánh 2026-07-20 — KHÔNG phải cử
+     chỉ back hệ thống của Android, mà là tính năng điều hướng lịch sử bằng vuốt ngang riêng của
+     Chrome). Vẫn CHO PHÉP vuốt dọc/pull-to-refresh bình thường ở đầu trang (không set
+     overscroll-behavior-y) — đúng ý user: "chỉ load lại khi vuốt từ trên xuống dưới". */
+  html, body { margin: 0; padding: 0; overscroll-behavior-x: none; }
   body { font-family: var(--font-ui); background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
   button, input { font-family: inherit; color: var(--text); }
   button:focus-visible, input:focus-visible, .dept-card:focus-visible, .project-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -143,6 +148,15 @@
   }
   .search-fab.show { display: flex; }
   .search-fab.open { background: var(--accent-strong); }
+
+  /* Nút phóng to/thu nhỏ chữ — chỉ có ở bản app cài vào màn hình chính (xem chú thích ở HTML). */
+  .zoom-controls { position: fixed; top: 76px; left: 16px; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+  .zoom-btn {
+    width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--surface);
+    color: var(--accent); box-shadow: var(--shadow); font-size: 19px; font-weight: 700; line-height: 1;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .zoom-btn:active { background: var(--accent-soft); }
   /* Mỗi tab-panel vẫn giữ 1 <div class="search-bar"> riêng (không gộp DOM) để không phải viết lại
      mọi hàm renderXFiltered() đang đọc đúng id ô nhập của tab mình — chỉ đổi CÁCH HIỂN THỊ từ nằm
      trong luồng trang sang nổi cố định. Vì ancestor .tab-panel/#dept-detail-area vẫn display:none
@@ -442,11 +456,25 @@
 
 </div>
 
+<!-- Nút chỉnh cỡ chữ +/- — CHỈ có ở bản app này (không có ở bản xem qua trình duyệt gốc), vì
+     trình duyệt tự có nút phóng to/thu nhỏ trang riêng còn app cài vào màn hình chính (standalone,
+     không thanh địa chỉ) thì không — user yêu cầu 2026-07-20. Đặt NGOÀI #app (không bị zoom theo
+     nội dung) để 2 nút luôn giữ nguyên kích thước dù đang phóng to/nhỏ tới đâu. -->
+<div class="zoom-controls" id="zoom-controls">
+  <button class="zoom-btn" id="zoom-in-btn" aria-label="Phóng to chữ">+</button>
+  <button class="zoom-btn" id="zoom-out-btn" aria-label="Thu nhỏ chữ">−</button>
+</div>
+
 <script>
 (function () {
   var STORAGE_KEY = 'bc_webview_password';
   var currentPassword = localStorage.getItem(STORAGE_KEY) || '';
-  var currentTab = 'projects';
+  var LAST_TAB_KEY = 'bc_webview_last_tab';
+  // Khôi phục ĐÚNG tab đã xem lần trước thay vì luôn quay về "Dự án" — user yêu cầu 2026-07-20:
+  // mở lại app (kể cả sau khi bị hệ điều hành/Android tự giải phóng bộ nhớ nền, buộc tải lại từ
+  // đầu — hành vi này KHÔNG kiểm soát được từ code web, xem chú thích ở loadOverview()) nên cảm
+  // giác gần giống "vẫn ở nguyên chỗ cũ" nhất có thể.
+  var currentTab = localStorage.getItem(LAST_TAB_KEY) || 'projects';
   var deptDetailData = null;
   var collapsedBanGroups = {}; // "Tên Ban" -> true nếu đang thu gọn — phải lưu NGOÀI renderProjectsFiltered() để không bị xóa mỗi khi gõ tìm kiếm làm render lại (lỗi Reviewer phát hiện 2026-07-19)
   var openProjectIds = {}; // "Mã dự án" -> true nếu báo cáo đang xổ ra ở Tab Dự án — lưu theo MÃ DỰ
@@ -494,10 +522,12 @@
   // ---- Trạng thái riêng cho Tab THỐNG KÊ BC (role "manager"/"btgd") ----
   var tkbcResp = null; // Kết quả webviewGetTKBC ({ok, months: [...]})
   var tkbcRequestId = 0;
+  var tkbcNeedsRefresh = false; // true nếu tkbcResp hiện tại là hydrate từ cache CŨ (localStorage lúc mở app), chưa được làm mới bằng dữ liệu THẬT trong phiên này lần nào — showTkbcTab() phải tự tải 1 lần dù đã "có dữ liệu để hiện"
 
   // ---- Trạng thái riêng cho Tab DANH SÁCH DA ----
   var projectListResp = null; // Kết quả webviewGetProjectList ({ok, projects: [...]})
   var projectListRequestId = 0;
+  var projectListNeedsRefresh = false; // Cùng lý do tkbcNeedsRefresh ở trên
 
   // Cache 3 nguồn dữ liệu NGAY SAU KHI ĐĂNG NHẬP (enterMain) — tránh gọi lại server mỗi lần
   // người dùng chuyển tab/chạm vào 1 bộ phận (nguyên nhân chính gây chậm 10-20s user phản ánh
@@ -528,28 +558,79 @@
     });
   }
 
+  // Cache dữ liệu CHỈ ĐỌC (overview/dept-list/dept-map/tkbc/project-list — KHÔNG cache 2 tab có
+  // luồng chỉnh sửa Gửi báo cáo/Ưu tiên vì có pendingEdits/pendingPriority phức tạp, hiện dữ liệu
+  // "tưởng mới nhưng thật ra cũ" ở đó rủi ro hơn nhiều so với lợi ích) vào localStorage — hiện
+  // NGAY dữ liệu LẦN TRƯỚC trong lúc chờ mạng trả lời, thay vì luôn phải thấy khung skeleton trống
+  // trơn mỗi lần mở app — user yêu cầu 2026-07-20: "muốn cache vẫn lưu và không load lại". LƯU Ý:
+  // đây KHÔNG ngăn được Android tự giải phóng tiến trình nền (vuốt app ra khỏi danh sách gần
+  // đây/thiếu RAM buộc tải lại từ đầu) — hành vi đó do hệ điều hành quản lý bộ nhớ, không phải thứ
+  // 1 trang web có thể tự khống chế (áp dụng cho MỌI PWA, không riêng app này) — cache này chỉ làm
+  // cho LẦN TẢI LẠI (dù do đâu) hiện nội dung tức thời từ lần xem gần nhất, rồi âm thầm thay bằng
+  // dữ liệu mới khi mạng trả lời xong (không có bước tải lại thủ công nào khác ngoài đúng như vậy).
+  var CACHE_PREFIX = 'bc_webview_cache_';
+  function saveCache_(key, val) {
+    try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(val)); } catch (e) { /* đầy/bị chặn -> bỏ qua */ }
+  }
+  function loadCache_(key) {
+    try { var raw = localStorage.getItem(CACHE_PREFIX + key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+
   function flushCbs(arr) { for (var i = 0; i < arr.length; i++) arr[i](); }
 
   function ensureOverview(cb) { if (overviewResp) cb(); else overviewCbs.push(cb); }
   function ensureDeptList(cb) { if (deptListResp) cb(); else deptListCbs.push(cb); }
   function ensureDeptMap(cb) { if (deptMapResp) cb(); else deptMapCbs.push(cb); }
 
+  // 3 hàm dưới đây LUÔN tự gọi lại server (không có bước "đã có dữ liệu thì bỏ qua") — nếu
+  // overviewResp/deptListResp/deptMapResp đã có sẵn từ cache (hydrateCacheOnLoad_(), lúc mở app)
+  // TRƯỚC KHI hàm này chạy thì ensureX() đã gọi callback NGAY LẬP TỨC bằng dữ liệu CŨ đó rồi
+  // (overviewCbs vẫn rỗng ở đây) — phải TỰ vẽ lại khi có bản MỚI về, không thì màn hình kẹt mãi ở
+  // dữ liệu cache dù bộ nhớ đã có bản mới hơn.
   function loadOverview() {
+    var hadCbs = overviewCbs.length > 0;
     callServer('webviewGetProjectsOverview', [currentPassword])
-      .then(function (res) { overviewResp = res; var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs); })
-      .catch(function (err) { overviewResp = { ok: false, error: 'Lỗi kết nối: ' + err.message }; var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs); });
+      .then(function (res) {
+        overviewResp = res;
+        if (res.ok) saveCache_('overview', res);
+        var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs);
+        if (!hadCbs && !cbs.length && currentTab === 'projects') renderProjectsFiltered();
+      })
+      .catch(function (err) {
+        if (overviewResp && overviewResp.ok) return; // Đã có cache đang hiện -> giữ nguyên, bỏ qua lỗi làm mới lần này
+        overviewResp = { ok: false, error: 'Lỗi kết nối: ' + err.message };
+        var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs);
+      });
   }
 
   function loadDeptList() {
+    var hadCbs = deptListCbs.length > 0;
     callServer('webviewGetDepartmentList', [currentPassword])
-      .then(function (res) { deptListResp = res; var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs); })
-      .catch(function (err) { deptListResp = { ok: false, error: 'Lỗi kết nối: ' + err.message }; var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs); });
+      .then(function (res) {
+        deptListResp = res;
+        if (res.ok) saveCache_('deptList', res);
+        var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs);
+        if (!hadCbs && !cbs.length && currentTab === 'departments' && $('dept-detail-area').style.display === 'none') renderDepartmentGrid();
+      })
+      .catch(function (err) {
+        if (deptListResp && deptListResp.ok) return;
+        deptListResp = { ok: false, error: 'Lỗi kết nối: ' + err.message };
+        var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs);
+      });
   }
 
   function loadDeptMap() {
     callServer('webviewGetProjectDepartmentMap', [currentPassword])
-      .then(function (res) { deptMapResp = res; var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs); })
-      .catch(function (err) { deptMapResp = { ok: false, error: 'Lỗi kết nối: ' + err.message }; var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs); });
+      .then(function (res) {
+        deptMapResp = res;
+        if (res.ok) saveCache_('deptMap', res);
+        var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs);
+      })
+      .catch(function (err) {
+        if (deptMapResp && deptMapResp.ok) return;
+        deptMapResp = { ok: false, error: 'Lỗi kết nối: ' + err.message };
+        var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs);
+      });
   }
 
   function $(id) { return document.getElementById(id); }
@@ -712,7 +793,7 @@
       var style = '';
       if (color) style += 'color:' + color + ';';
       if (run.b) style += 'font-weight:700;';
-      var text = escapeHtml(run.t).replace(/\\n/g, '<br>');
+      var text = escapeHtml(run.t).replace(/\n/g, '<br>');
       html += style ? ('<span style="' + style + '">' + text + '</span>') : text;
     }
     return html;
@@ -839,16 +920,40 @@
     if (mainEntered) { showView('view-main'); return; }
     mainEntered = true;
     showView('view-main');
+    // Hiện NGAY dữ liệu lần trước từ localStorage (nếu có) trong lúc chờ mạng trả lời — trước khi
+    // gọi loadOverview()/loadDeptList()/... bên dưới, để ensureX() thấy sẵn dữ liệu và vẽ ngay lập
+    // tức thay vì luôn phải qua khung xương trống trơn trước (user yêu cầu 2026-07-20: "muốn cache
+    // vẫn lưu và không load lại" — không ngăn được Android tự giải phóng tiến trình nền, nhưng làm
+    // MỖI LẦN TẢI LẠI (dù do đâu) hiện được nội dung tức thời).
+    var cachedOverview = loadCache_('overview');
+    if (cachedOverview && cachedOverview.ok) overviewResp = cachedOverview;
+    var cachedDeptList = loadCache_('deptList');
+    if (cachedDeptList && cachedDeptList.ok) deptListResp = cachedDeptList;
+    var cachedDeptMap = loadCache_('deptMap');
+    if (cachedDeptMap && cachedDeptMap.ok) deptMapResp = cachedDeptMap;
+    var cachedTkbc = loadCache_('tkbc');
+    if (cachedTkbc && cachedTkbc.ok) { tkbcResp = cachedTkbc; tkbcNeedsRefresh = true; }
+    var cachedProjectList = loadCache_('projectList');
+    if (cachedProjectList && cachedProjectList.ok) { projectListResp = cachedProjectList; projectListNeedsRefresh = true; }
     // Nạp cả 3 nguồn dữ liệu ngay khi vào app — Tab BỘ PHẬN sẽ lọc từ đây, không đọc lại sheet.
     loadOverview();
     loadDeptList();
     loadDeptMap();
-    // Kích hoạt tab mặc định TRƯỚC (Dự án luôn được ưu tiên nạp trước tiên) — PHẢI gọi
-    // switchTab('projects') trước khi nạp song song các tab khác bên dưới, vì switchTab() tự tăng
-    // các biến chống-race (submitRequestId/priorityRequestId/tkbcRequestId/projectListRequestId)
-    // mỗi lần gọi — nếu nạp các tab khác TRƯỚC rồi mới switchTab(), lệnh switchTab() sẽ VÔ TÌNH
-    // hủy ngay các yêu cầu vừa gửi đi (coi như "đã chuyển tab khác, kết quả cũ").
-    switchTab('projects');
+    // Kích hoạt tab MỞ ĐẦU TRƯỚC (ưu tiên nạp trước tiên) — PHẢI gọi switchTab(...) trước khi nạp
+    // song song các tab khác bên dưới, vì switchTab() tự tăng các biến chống-race
+    // (submitRequestId/priorityRequestId/tkbcRequestId/projectListRequestId) mỗi lần gọi — nếu nạp
+    // các tab khác TRƯỚC rồi mới switchTab(), lệnh switchTab() sẽ VÔ TÌNH hủy ngay các yêu cầu vừa
+    // gửi đi (coi như "đã chuyển tab khác, kết quả cũ"). Mở lại ĐÚNG tab đã xem lần trước
+    // (currentTab đã khôi phục từ localStorage) nếu tab đó vẫn còn hợp lệ với vai trò hiện tại —
+    // không thì về "Dự án" (tab luôn hợp lệ với mọi vai trò).
+    var restoreTab = currentTab;
+    var restoreAllowed =
+      (restoreTab === 'projects' || restoreTab === 'departments') ||
+      (restoreTab === 'submit' && currentRole === 'manager') ||
+      (restoreTab === 'priority' && currentRole === 'btgd') ||
+      (restoreTab === 'tkbc' && currentCanViewTKBC) ||
+      (restoreTab === 'danhsachda' && currentCanViewProjectList);
+    switchTab(restoreAllowed ? restoreTab : 'projects');
     // Nạp dữ liệu của MỌI tab người dùng có quyền xem ngay khi vào app — hạn chế phải chờ khi
     // chuyển tab sau này (user yêu cầu 2026-07-19). Thứ tự ưu tiên: Dự án (đã nạp ở trên) -> Gửi
     // báo cáo/Ưu tiên -> Thống kê BC -> Danh sách DA. GIÃN CÁCH bằng setTimeout thay vì gọi dồn
@@ -880,6 +985,7 @@
     scrollLastY = 0; scrollDownRun = 0;
     setTabbarScrollHidden_(false);
     currentTab = tab;
+    try { localStorage.setItem(LAST_TAB_KEY, tab); } catch (e) { /* localStorage đầy/bị chặn -> bỏ qua, không chặn chuyển tab */ }
     $('tab-btn-projects').classList.toggle('active', tab === 'projects');
     $('tab-btn-departments').classList.toggle('active', tab === 'departments');
     $('tab-btn-submit').classList.toggle('active', tab === 'submit');
@@ -1047,9 +1153,9 @@
   }
 
   function initialsFor(label) {
-    var stripped = label.replace(/^(Phòng|Bộ phận|XN)\\s*/i, '').trim();
+    var stripped = label.replace(/^(Phòng|Bộ phận|XN)\s*/i, '').trim();
     var base = stripped.length > 0 ? stripped : label;
-    var words = base.split(/\\s+/);
+    var words = base.split(/\s+/);
     if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
     return base.slice(0, 2).toUpperCase();
   }
@@ -1681,17 +1787,23 @@
   // trúc CỐ ĐỊNH theo sheet "mm.yyyy" thật (xem parseTKBCSheet_).
 
   function showTkbcTab() {
-    if (tkbcResp && tkbcResp.ok) { renderTkbc(); return; }
+    if (tkbcResp && tkbcResp.ok) {
+      renderTkbc(); // Luôn vẽ ngay (dù dữ liệu là từ cache cũ hay đã tải thật trong phiên này)
+      if (!tkbcNeedsRefresh) return; // Đã có bản MỚI trong phiên này rồi -> không tải lại (giữ đúng ý "chỉ tải 1 lần/phiên" cũ)
+      tkbcNeedsRefresh = false; // Cache cũ -> sắp làm mới 1 lần, đánh dấu để không lặp lại việc này ở lần vào tab tiếp theo
+    }
     var myRequestId = ++tkbcRequestId;
-    $('tkbc-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    if (!tkbcResp) $('tkbc-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
     callServer('webviewGetTKBC', [currentPassword])
       .then(function (res) {
         if (myRequestId !== tkbcRequestId) return;
         tkbcResp = res;
+        if (res.ok) saveCache_('tkbc', res);
         renderTkbc();
       })
       .catch(function (err) {
         if (myRequestId !== tkbcRequestId) return;
+        if (tkbcResp && tkbcResp.ok) return; // Đã có cache đang hiện -> giữ nguyên, bỏ qua lỗi làm mới lần này
         $('tkbc-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
       });
   }
@@ -1754,17 +1866,23 @@
   // gốc, client KHÔNG tự sắp xếp lại.
 
   function showDanhSachDaTab() {
-    if (projectListResp && projectListResp.ok) { renderDanhSachDaFiltered(); return; }
+    if (projectListResp && projectListResp.ok) {
+      renderDanhSachDaFiltered(); // Luôn vẽ ngay (dù dữ liệu là từ cache cũ hay đã tải thật trong phiên này)
+      if (!projectListNeedsRefresh) return;
+      projectListNeedsRefresh = false;
+    }
     var myRequestId = ++projectListRequestId;
-    $('danhsachda-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    if (!projectListResp) $('danhsachda-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
     callServer('webviewGetProjectList', [currentPassword])
       .then(function (res) {
         if (myRequestId !== projectListRequestId) return;
         projectListResp = res;
+        if (res.ok) saveCache_('projectList', res);
         renderDanhSachDaFiltered();
       })
       .catch(function (err) {
         if (myRequestId !== projectListRequestId) return;
+        if (projectListResp && projectListResp.ok) return;
         $('danhsachda-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
       });
   }
@@ -1809,10 +1927,15 @@
     mainEntered = false;
     submitProjectsResp = null; pendingEdits = {}; submitInFlight = false;
     priorityMapResp = null; pendingPriority = {}; priorityInFlight = false;
-    tkbcResp = null;
-    projectListResp = null;
+    tkbcResp = null; tkbcNeedsRefresh = false;
+    projectListResp = null; projectListNeedsRefresh = false;
     openProjectIds = {};
     searchWasOpenByTab = {};
+    // Xóa luôn cache localStorage (không chỉ biến trong bộ nhớ) — phòng trường hợp thiết bị dùng
+    // chung, người khác đăng nhập vai trò khác ngay sau đó không bị hydrate nhầm dữ liệu vai trò cũ.
+    ['overview', 'deptList', 'deptMap', 'tkbc', 'projectList'].forEach(function (k) {
+      try { localStorage.removeItem(CACHE_PREFIX + k); } catch (e) { /* bỏ qua */ }
+    });
     closeSearchOverlay_(false);
     showView('view-login');
   }
@@ -1840,6 +1963,30 @@
       navigator.serviceWorker.register('sw.js').catch(function () { /* PWA vẫn dùng bình thường nếu đăng ký thất bại, chỉ mất phần cache/cài đặt vào màn hình chính */ });
     });
   }
+
+  // ---- Phóng to/thu nhỏ chữ (nút +/- góc trái trên) — CHỈ CÓ Ở BẢN APP này, vì bản xem qua
+  // trình duyệt gốc (WEBVIEW_THBC/WebviewHtml.js) tự có sẵn nút phóng to/nhỏ trang riêng của trình
+  // duyệt, còn app cài vào màn hình chính (chạy standalone, không thanh địa chỉ/menu trình duyệt)
+  // thì KHÔNG — user yêu cầu 2026-07-20. Dùng CSS "zoom" (không chuẩn nhưng Chrome/WebView Android
+  // hỗ trợ đầy đủ — môi trường DUY NHẤT app này chạy) áp lên #app thay vì đổi từng font-size —
+  // đơn giản hơn NHIỀU so với chuyển toàn bộ CSS hiện có (hàng trăm giá trị px đã tinh chỉnh qua
+  // nhiều vòng sửa lỗi) sang rem, và scale ĐỀU mọi thứ (chữ, khoảng cách, icon) theo đúng tỉ lệ.
+  var ZOOM_KEY = 'bc_webview_zoom';
+  var ZOOM_MIN = 0.85, ZOOM_MAX = 1.5, ZOOM_STEP = 0.1;
+  var zoomLevel = parseFloat(localStorage.getItem(ZOOM_KEY)) || 1;
+  function applyZoom_() {
+    $('app').style.zoom = zoomLevel;
+    try { localStorage.setItem(ZOOM_KEY, zoomLevel); } catch (e) { /* bỏ qua */ }
+  }
+  $('zoom-in-btn').addEventListener('click', function () {
+    zoomLevel = Math.min(ZOOM_MAX, Math.round((zoomLevel + ZOOM_STEP) * 100) / 100);
+    applyZoom_();
+  });
+  $('zoom-out-btn').addEventListener('click', function () {
+    zoomLevel = Math.max(ZOOM_MIN, Math.round((zoomLevel - ZOOM_STEP) * 100) / 100);
+    applyZoom_();
+  });
+  applyZoom_(); // Áp ngay từ đầu theo mức đã lưu lần trước (mặc định 1 = 100% nếu chưa từng chỉnh)
 
   if (currentPassword) verifyAndProceed(currentPassword, true);
   else showView('view-login');
