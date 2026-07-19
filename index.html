@@ -150,7 +150,10 @@
   .search-fab.open { background: var(--accent-strong); }
 
   /* Nút phóng to/thu nhỏ chữ — chỉ có ở bản app cài vào màn hình chính (xem chú thích ở HTML). */
-  .zoom-controls { position: fixed; top: 76px; left: 16px; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
+  /* Góc dưới-phải (user yêu cầu 2026-07-20, đổi từ góc trên-trái) — chừa bottom:72px (không sát
+     đáy màn hình) để không đè lên thanh nút "Gửi báo cáo"/"Lưu thay đổi" (.submit-bar, dính đáy màn
+     hình, cao ~60px) ở 2 tab có thanh này. */
+  .zoom-controls { position: fixed; bottom: 72px; right: 16px; z-index: 30; display: flex; flex-direction: column; gap: 8px; }
   .zoom-btn {
     width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--surface);
     color: var(--accent); box-shadow: var(--shadow); font-size: 19px; font-weight: 700; line-height: 1;
@@ -1818,7 +1821,10 @@
     if (tkbcResp && tkbcResp.ok) {
       renderTkbc(); // Luôn vẽ ngay (dù dữ liệu là từ cache cũ hay đã tải thật trong phiên này)
       if (!tkbcNeedsRefresh) return; // Đã có bản MỚI trong phiên này rồi -> không tải lại (giữ đúng ý "chỉ tải 1 lần/phiên" cũ)
-      tkbcNeedsRefresh = false; // Cache cũ -> sắp làm mới 1 lần, đánh dấu để không lặp lại việc này ở lần vào tab tiếp theo
+      // KHÔNG xóa cờ tkbcNeedsRefresh ở đây (trước khi biết fetch bên dưới có thành công hay
+      // không) — nếu xóa sớm rồi lần tải làm mới NÀY lại lỗi mạng, cờ đã mất nên các lần vào tab
+      // SAU sẽ không bao giờ thử tải lại nữa, kẹt vĩnh viễn ở cache cũ suốt phiên (Reviewer phát
+      // hiện 2026-07-20). Chỉ xóa cờ trong nhánh .then() khi CHẮC CHẮN đã có dữ liệu mới thật.
     }
     var myRequestId = ++tkbcRequestId;
     if (!tkbcResp) $('tkbc-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
@@ -1826,12 +1832,12 @@
       .then(function (res) {
         if (myRequestId !== tkbcRequestId) return;
         tkbcResp = res;
-        if (res.ok) saveCache_('tkbc', res);
+        if (res.ok) { saveCache_('tkbc', res); tkbcNeedsRefresh = false; }
         renderTkbc();
       })
       .catch(function (err) {
         if (myRequestId !== tkbcRequestId) return;
-        if (tkbcResp && tkbcResp.ok) return; // Đã có cache đang hiện -> giữ nguyên, bỏ qua lỗi làm mới lần này
+        if (tkbcResp && tkbcResp.ok) return; // Đã có cache đang hiện -> giữ nguyên, bỏ qua lỗi làm mới lần này (tkbcNeedsRefresh vẫn còn true -> tự thử lại ở lần vào tab tiếp theo)
         $('tkbc-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
       });
   }
@@ -1897,7 +1903,8 @@
     if (projectListResp && projectListResp.ok) {
       renderDanhSachDaFiltered(); // Luôn vẽ ngay (dù dữ liệu là từ cache cũ hay đã tải thật trong phiên này)
       if (!projectListNeedsRefresh) return;
-      projectListNeedsRefresh = false;
+      // KHÔNG xóa cờ ở đây trước khi biết fetch có thành công hay không — cùng lý do tkbcNeedsRefresh
+      // ở showTkbcTab() (Reviewer phát hiện 2026-07-20: xóa sớm + 1 lần lỗi mạng = kẹt cache cũ vĩnh viễn).
     }
     var myRequestId = ++projectListRequestId;
     if (!projectListResp) $('danhsachda-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
@@ -1905,12 +1912,12 @@
       .then(function (res) {
         if (myRequestId !== projectListRequestId) return;
         projectListResp = res;
-        if (res.ok) saveCache_('projectList', res);
+        if (res.ok) { saveCache_('projectList', res); projectListNeedsRefresh = false; }
         renderDanhSachDaFiltered();
       })
       .catch(function (err) {
         if (myRequestId !== projectListRequestId) return;
-        if (projectListResp && projectListResp.ok) return;
+        if (projectListResp && projectListResp.ok) return; // projectListNeedsRefresh vẫn true -> tự thử lại ở lần vào tab tiếp theo
         $('danhsachda-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
       });
   }
@@ -1959,6 +1966,14 @@
     projectListResp = null; projectListNeedsRefresh = false;
     openProjectIds = {};
     searchWasOpenByTab = {};
+    // Đăng xuất ngay TỪ màn hình chi tiết 1 bộ phận (nút "Đăng xuất" vẫn bấm được từ đó, không
+    // nằm trong #dept-detail-area) để lại 1 mốc lịch sử THẬT chưa tiêu thụ (đã pushState lúc mở
+    // chi tiết) — nếu không reset ở đây, đăng nhập lại lần sau enterMain()->switchTab() sẽ gọi
+    // backFromDeptDetail() thấy deptDetailHistoryPushed vẫn true (sót từ phiên TRƯỚC) và tự ý gọi
+    // history.back() ÉP người dùng lùi trang ngay sau khi vừa đăng nhập lại — thao tác họ không hề
+    // yêu cầu (lỗi Reviewer phát hiện 2026-07-20).
+    deptDetailHistoryPushed = false;
+    currentDeptDetailCode = null;
     // Xóa luôn cache localStorage (không chỉ biến trong bộ nhớ) — phòng trường hợp thiết bị dùng
     // chung, người khác đăng nhập vai trò khác ngay sau đó không bị hydrate nhầm dữ liệu vai trò cũ.
     ['overview', 'deptList', 'deptMap', 'tkbc', 'projectList'].forEach(function (k) {
@@ -2014,6 +2029,10 @@
     $('search-fab').style.zoom = inverse;
     var bars = document.querySelectorAll('.search-bar');
     for (var i = 0; i < bars.length; i++) bars[i].style.zoom = inverse;
+    // #toast cũng position:fixed BÊN TRONG #app như search-fab/search-bar ở trên — cùng lý do,
+    // cùng cần bù zoom nghịch đảo, không thì mọi thông báo nổi (Đã gửi báo cáo, lỗi...) sẽ bị
+    // to/lệch theo mức zoom (Reviewer phát hiện 2026-07-20, sót lại khi mới chỉ bù 2 phần tử trên).
+    $('toast').style.zoom = inverse;
     try { localStorage.setItem(ZOOM_KEY, zoomLevel); } catch (e) { /* bỏ qua */ }
   }
   $('zoom-in-btn').addEventListener('click', function () {
