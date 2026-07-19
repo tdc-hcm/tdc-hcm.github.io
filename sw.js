@@ -3,7 +3,9 @@
 // mạng, bỏ qua cache hoàn toàn) — tránh rủi ro hiện dữ liệu báo cáo CŨ mà tưởng là mới. Cache
 // app-shell giúp mở lại gần như tức thời (đúng yêu cầu "trải nghiệm như app thông thường") + vẫn
 // thấy được giao diện (dù chưa tải được dữ liệu) khi mất mạng tạm thời.
-var CACHE_NAME = 'bc-tdc-shell-v1';
+var CACHE_NAME = 'bc-tdc-shell-v2'; // Tăng version -> ép activate() xóa sạch cache v1 cũ, đảm bảo
+                                     // các bản sửa lỗi (đặc biệt lỗi xuống dòng) được áp dụng ngay,
+                                     // không bị service worker cũ tiếp tục phục vụ bản HTML cũ.
 var SHELL_FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (event) {
