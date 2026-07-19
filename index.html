@@ -190,9 +190,17 @@
   .dept-avatar { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 700; font-size: 12px; color: #fff; flex-shrink: 0; }
   .dept-name { font-size: 13.5px; font-weight: 700; line-height: 1.3; color: var(--text); }
 
-  .ban-group { padding: 10px 8px 0; }
+  /* Khoảng cách giữa 2 nhóm Ban liên tiếp (thẻ cuối nhóm trên -> tiêu đề nhóm dưới) trước đây =
+     margin-bottom thẻ cuối (8-10px) + padding-top nhóm (10px) + margin-top tiêu đề (16px) ≈
+     34-36px — quá xa so với khoảng cách 8-10px GIỮA các thẻ trong CÙNG 1 nhóm, đặc biệt rõ khi thu
+     gọn (chỉ còn tiêu đề, khoảng trống nhìn càng lộ) — user phản ánh 2026-07-20. Giảm còn ~20-22px
+     (padding nhóm 10px->2px, margin-top tiêu đề 16px->10px) — vẫn đủ tách nhóm rõ ràng nhưng không
+     còn rời rạc. Nhóm ĐẦU TIÊN (không có thẻ nhóm trên để tính khoảng cách) giữ nguyên padding-top
+     10px như cũ để không bị sát tabbar phía trên. */
+  .ban-group { padding: 2px 8px 0; }
+  .ban-group:first-child { padding-top: 10px; }
   .ban-title-row {
-    display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 16px 0 8px;
+    display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 10px 0 8px;
     background: var(--accent-soft); border-radius: 8px; padding: 7px 10px 7px 12px;
   }
   .ban-title-row.priority { background: var(--priority-bg); border: 1px solid var(--priority-border); }
@@ -291,12 +299,17 @@
   .tkbc-stat-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid; }
   .tkbc-stat-badge.ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-text); }
   .tkbc-stat-badge.bad { background: var(--bad-bg); border-color: var(--bad-border); color: var(--bad-text); }
-  .tkbc-days { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px; }
-  /* Rộng hơn bản trước (34px -> 46px) để chứa được "Thứ, ngày" (vd "T4, 1") CHUNG 1 DÒNG — user
-     yêu cầu 2026-07-19, kèm white-space:nowrap phòng khi ngày 2 chữ số (vd "T4, 31") vẫn không bị
-     đẩy xuống dòng dưới dù cỡ chữ đã khá nhỏ. */
-  .tkbc-day { flex-shrink: 0; width: 46px; text-align: center; border-radius: 8px; padding: 5px 2px; border: 1px solid var(--border); background: var(--surface-alt); }
-  .tkbc-day .d-num { font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+  .tkbc-days { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+  /* Thu hẹp lại (46px -> 40px, user phản ánh 2026-07-20 ô quá rộng) — nguyên nhân chính là
+     .d-num dùng font-mono (đơn cách/monospace): dấu cách + dấu phẩy trong font đơn cách LUÔN rộng
+     bằng đúng 1 ký tự bất kể thực ra hẹp hơn nhiều so với 1 chữ số, đẩy tổng bề rộng "T4, 1" ra
+     rộng bất thường. Đổi sang font-ui (font hệ thống, không đơn cách) + bỏ dấu cách sau dấu phẩy
+     ("T4, 1" -> "T4,1", xem renderTkbc()) để hẹp hơn nhiều mà vẫn đọc rõ, hiện được nhiều ô hơn
+     trên cùng 1 màn hình. Giữ 40px (không xuống 36px) để còn đủ chỗ cho trường hợp DÀI NHẤT có
+     thể xảy ra — thứ 2 ký tự + phẩy + ngày 2 chữ số, vd "CN,31"/"T2,31" (Reviewer phát hiện
+     2026-07-20: 36px không chắc đủ, dễ tràn lề ô ở đúng trường hợp này). */
+  .tkbc-day { flex-shrink: 0; width: 40px; text-align: center; border-radius: 8px; padding: 5px 2px; border: 1px solid var(--border); background: var(--surface-alt); }
+  .tkbc-day .d-num { font-size: 10px; font-weight: 600; color: var(--text-muted); font-family: var(--font-ui); white-space: nowrap; }
   .tkbc-day .d-status { font-size: 12px; font-weight: 700; font-family: var(--font-mono); }
   .tkbc-day.ontime { background: var(--ok-bg); border-color: var(--ok-border); }
   .tkbc-day.ontime .d-status { color: var(--ok-text); }
@@ -1942,10 +1955,12 @@
           if (status === 'Đ') { cls += ' ontime'; label = 'Đ'; }
           else if (status === 'M') { cls += ' late'; label = 'M'; }
           else { cls += ' missed'; }
-          // Thêm thứ trong tuần trước số ngày (vd "T4, 1") — user yêu cầu 2026-07-19, phải hiện
-          // chung 1 dòng không xuống hàng (xem .tkbc-day .d-num white-space:nowrap ở CSS).
+          // Thêm thứ trong tuần trước số ngày (vd "T4,1") — user yêu cầu 2026-07-19, phải hiện
+          // chung 1 dòng không xuống hàng (xem .tkbc-day .d-num white-space:nowrap ở CSS). Bỏ dấu
+          // cách sau dấu phẩy ("T4, 1" -> "T4,1") — user phản ánh 2026-07-20: khoảng cách quá rộng,
+          // gộp với việc đổi font-mono (đơn cách, dấu cách rất rộng) sang font-ui ở CSS để ô hẹp lại.
           var wd = (month.weekdays && month.weekdays[day]) ? month.weekdays[day] : '';
-          var dayLabel = wd ? (wd + ', ' + day) : String(day);
+          var dayLabel = wd ? (wd + ',' + day) : String(day);
           html += '<div class="' + cls + '"><div class="d-num">' + escapeHtml(dayLabel) + '</div><div class="d-status">' + label + '</div></div>';
         });
         html += '</div></div>';
