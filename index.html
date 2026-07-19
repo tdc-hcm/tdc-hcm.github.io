@@ -562,22 +562,72 @@
     });
   }
 
-  // Cache "hiện cũ trước, âm thầm thay mới sau" — CHỈ còn dùng cho Thống kê BC/Danh sách DA (xem
-  // showTkbcTab/showDanhSachDaTab). KHÔNG áp dụng cho overview/dept-list/dept-map (Tab Dự
-  // án/Bộ phận) nữa — bỏ theo yêu cầu user 2026-07-20: 2 tab đó hiện NỘI DUNG BÁO CÁO thật, hiện
-  // tạm dữ liệu chưa xác nhận là mới nhất có rủi ro thật (người dùng có thể đọc/tin nhầm báo cáo đã
-  // lỗi thời nếu bản mới tải lâu hoặc lỗi mạng) — 2 tab đó giờ LUÔN chờ dữ liệu THẬT mới nhất mới
-  // hiện (xem enterMain()). Thống kê BC/Danh sách DA là dữ liệu thống kê/danh mục, rủi ro thấp hơn
-  // nhiều nên vẫn giữ cache để mở lại tức thời — không áp dụng cho Gửi báo cáo/Ưu tiên (có
-  // pendingEdits/pendingPriority phức tạp, hiện dữ liệu "tưởng mới nhưng thật ra cũ" ở đó rủi ro
-  // hơn nhiều so với lợi ích).
+  // Cache "hiện cũ trước, âm thầm thay mới sau" — MỖI MỤC LƯU KÈM THỜI ĐIỂM LƯU (savedAt) để biết
+  // "cũ" tới đâu (user yêu cầu 2026-07-20). 2 cách dùng khác nhau theo mức rủi ro của từng tab:
+  //   - overview/dept-list/dept-map (Tab Dự án/Bộ phận — hiện NỘI DUNG BÁO CÁO thật): CHỈ hiện
+  //     cache ngay nếu cache CÒN MỚI (dưới 6 giờ — xem STALE_THRESHOLD_MS, kiểm tra ở enterMain());
+  //     cache quá 6 giờ coi như không có, phải chờ dữ liệu THẬT mới nhất mới hiện (tránh đọc nhầm
+  //     báo cáo lỗi thời nếu để lâu không mở app).
+  //   - tkbc/project-list (Thống kê BC/Danh sách DA — dữ liệu thống kê/danh mục, rủi ro thấp hơn
+  //     nhiều): LUÔN hiện cache ngay bất kể cũ tới đâu, không kiểm tra tuổi.
+  //   - Gửi báo cáo/Ưu tiên: KHÔNG cache (có pendingEdits/pendingPriority phức tạp, hiện dữ liệu
+  //     "tưởng mới nhưng thật ra cũ" ở đó rủi ro hơn nhiều so với lợi ích).
   var CACHE_PREFIX = 'bc_webview_cache_';
+  var STALE_THRESHOLD_MS = 6 * 60 * 60 * 1000; // 6 giờ — chỉ áp dụng cho overview/dept-list/dept-map
   function saveCache_(key, val) {
-    try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify(val)); } catch (e) { /* đầy/bị chặn -> bỏ qua */ }
+    try { localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data: val, savedAt: Date.now() })); } catch (e) { /* đầy/bị chặn -> bỏ qua */ }
   }
+  // Trả về { data, savedAt } hoặc null — dùng khi cần biết TUỔI cache (overview/dept-list/dept-map).
+  function loadCacheEntry_(key) {
+    try {
+      var raw = localStorage.getItem(CACHE_PREFIX + key);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.savedAt !== 'number' || !parsed.data) return null;
+      return parsed;
+    } catch (e) { return null; }
+  }
+  // Chỉ lấy dữ liệu, không quan tâm tuổi — dùng cho tkbc/project-list (luôn hiện cache bất kể cũ).
   function loadCache_(key) {
-    try { var raw = localStorage.getItem(CACHE_PREFIX + key); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+    var entry = loadCacheEntry_(key);
+    return entry ? entry.data : null;
   }
+
+  // ---- Làm mới NGẦM tất cả tab khi quay lại app (user yêu cầu 2026-07-20) — bấm Home rồi mở lại
+  // app (document chuyển 'hidden' -> 'visible', KHÔNG phải tải lại trang — PWA vẫn chạy nền, giữ
+  // nguyên toàn bộ trạng thái JS) sẽ tự âm thầm hỏi lại dữ liệu MỚI cho mọi tab, không cần người
+  // dùng tự kéo xuống làm mới. Chặn tối đa 1 LẦN / 6 PHÚT (tính từ lần làm mới toàn bộ gần nhất,
+  // lưu localStorage nên vẫn nhớ đúng dù app có bị tải lại giữa chừng) — về-rồi-vào-lại app liên
+  // tục KHÔNG làm mới dồn dập, chỉ khi đã đủ 6 phút mới thật sự hỏi lại server. Vuốt xuống để làm
+  // mới thủ công (pull-to-refresh gốc của trình duyệt, vẫn để nguyên không chặn — xem CSS
+  // overscroll-behavior-y) luôn tải lại TOÀN BỘ trang nên KHÔNG bị giới hạn 6 phút này (enterMain()
+  // chạy lại từ đầu, tự markFullRefreshNow_() ngay). ----
+  var LAST_REFRESH_KEY = 'bc_webview_last_full_refresh';
+  var REFRESH_THROTTLE_MS = 6 * 60 * 1000; // 6 phút
+  function markFullRefreshNow_() {
+    try { localStorage.setItem(LAST_REFRESH_KEY, String(Date.now())); } catch (e) { /* bỏ qua */ }
+  }
+  function maybeBackgroundRefreshAll_() {
+    if (!mainEntered) return; // Chưa đăng nhập xong -> chưa có gì để làm mới
+    var last = 0;
+    try { last = parseInt(localStorage.getItem(LAST_REFRESH_KEY), 10) || 0; } catch (e) { /* bỏ qua */ }
+    if (Date.now() - last < REFRESH_THROTTLE_MS) return; // Chưa đủ 6 phút kể từ lần làm mới gần nhất
+    markFullRefreshNow_();
+    // Tab Dự án/Bộ phận: loadX() LUÔN tự chạy lại, tự vẽ lại NGẦM đúng tab đang xem (không hiện
+    // skeleton vì dữ liệu đang hiện sẵn không bị đụng tới cho tới khi có bản mới thay thế hẳn).
+    loadOverview();
+    loadDeptList();
+    loadDeptMap();
+    // Thống kê BC/Danh sách DA: chỉ làm mới nếu người dùng CÓ QUYỀN xem tab đó — force=true để bỏ
+    // qua điều kiện "đã tải trong phiên rồi thì thôi" (khác lúc người dùng tự bấm vào tab).
+    if (currentCanViewTKBC) showTkbcTab(true);
+    if (currentCanViewProjectList) showDanhSachDaTab(true);
+    // KHÔNG đụng tới Gửi báo cáo/Ưu tiên — có pendingEdits/pendingPriority đang dở, tự làm mới ngầm
+    // dữ liệu gốc ở đó có thể xóa/ghi đè lặng lẽ những gì người dùng đang gõ dở, rủi ro hơn lợi ích.
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') maybeBackgroundRefreshAll_();
+  });
 
   function flushCbs(arr) { for (var i = 0; i < arr.length; i++) arr[i](); }
 
@@ -585,25 +635,26 @@
   function ensureDeptList(cb) { if (deptListResp) cb(); else deptListCbs.push(cb); }
   function ensureDeptMap(cb) { if (deptMapResp) cb(); else deptMapCbs.push(cb); }
 
-  // 3 hàm dưới đây KHÔNG hydrate/lưu cache localStorage (bỏ theo yêu cầu user 2026-07-20 — Tab "Dự
-  // án"/"Bộ phận" luôn phải là dữ liệu MỚI XÁC NHẬN, không hiện tạm nội dung chưa chắc còn đúng).
-  // Vẫn cần "hadCbs" bên dưới cho 1 tình huống KHÁC (không liên quan cache): hàm này có thể được
-  // gọi lại từ 1 luồng NỀN không do người dùng đang xem tab đó kích hoạt — ví dụ doSavePriority()
-  // gọi lại loadOverview() sau khi lưu ưu tiên xong trong khi người dùng đã tự chuyển sang Tab Dự
-  // án từ trước (ensureOverview() lúc đó đã render ngay bằng dữ liệu CŨ HƠN, không phải cache, mà
-  // là lần tải hợp lệ trước đó) — khi bản MỚI về, overviewCbs rỗng (không ai đang chờ) nên phải TỰ
-  // vẽ lại, không thì màn hình kẹt ở bản trước khi lưu ưu tiên dù bộ nhớ đã có bản mới hơn.
+  // 3 hàm dưới đây LUÔN tự gọi lại server (không có bước "đã có dữ liệu thì bỏ qua" như
+  // showTkbcTab/showDanhSachDaTab) — hydrate ở enterMain() (nếu cache còn <6h) chỉ để HIỂN THỊ TẠM
+  // trong lúc chờ, không thay cho việc tải lại thật. "hadCbs" bên dưới lo 2 tình huống cần TỰ vẽ
+  // lại khi bản mới về (vì ensureX() không tự kích hoạt callback lần nữa): (1) đã hydrate cache
+  // <6h nên ensureX() gọi callback NGAY bằng dữ liệu cache đó, overviewCbs rỗng khi bản mới về; (2)
+  // hàm được gọi từ 1 luồng NỀN không do người dùng đang xem tab đó kích hoạt — ví dụ
+  // doSavePriority() gọi lại loadOverview() sau khi lưu ưu tiên xong trong khi người dùng đã tự
+  // chuyển sang Tab Dự án từ trước.
   function loadOverview() {
     var hadCbs = overviewCbs.length > 0;
     callServer('webviewGetProjectsOverview', [currentPassword])
       .then(function (res) {
         overviewResp = res;
+        if (res.ok) saveCache_('overview', res);
         var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs);
         if (!hadCbs && !cbs.length && currentTab === 'projects') renderProjectsFiltered();
         refreshDeptDetailIfOpen_(); // Đang xem chi tiết 1 bộ phận -> vẽ lại bằng bản mới này nếu có thay đổi
       })
       .catch(function (err) {
-        if (overviewResp && overviewResp.ok) return; // Đã có bản hợp lệ trong phiên này -> giữ nguyên, chỉ bỏ qua lần làm mới lỗi mạng này (không phải cache cũ qua nhiều phiên)
+        if (overviewResp && overviewResp.ok) return; // Đã có bản hợp lệ đang hiện (cache <6h hoặc đã tải trong phiên) -> giữ nguyên, chỉ bỏ qua lần làm mới lỗi mạng này
         overviewResp = { ok: false, error: 'Lỗi kết nối: ' + err.message };
         var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs);
       });
@@ -614,6 +665,7 @@
     callServer('webviewGetDepartmentList', [currentPassword])
       .then(function (res) {
         deptListResp = res;
+        if (res.ok) saveCache_('deptList', res);
         var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs);
         if (!hadCbs && !cbs.length && currentTab === 'departments' && $('dept-detail-area').style.display === 'none') renderDepartmentGrid();
       })
@@ -628,6 +680,7 @@
     callServer('webviewGetProjectDepartmentMap', [currentPassword])
       .then(function (res) {
         deptMapResp = res;
+        if (res.ok) saveCache_('deptMap', res);
         var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs);
         refreshDeptDetailIfOpen_(); // Cùng lý do ở loadOverview() — Bộ phận đang xem có thể cần deptMap để lọc (3 bộ phận Thiết kế)
       })
@@ -925,15 +978,20 @@
     if (mainEntered) { showView('view-main'); return; }
     mainEntered = true;
     showView('view-main');
-    // KHÔNG hydrate overview/deptList/deptMap từ cache nữa (đã bỏ theo yêu cầu user 2026-07-20:
-    // hiện dữ liệu CŨ ngay trong lúc chờ có rủi ro thật — nếu bản MỚI tải lâu hoặc lỗi mạng, người
-    // dùng có thể đọc/tin vào đúng NỘI DUNG BÁO CÁO đã lỗi thời mà không biết, ví dụ nhóm "CÁC DỰ
-    // ÁN ƯU TIÊN" hay nội dung 1 báo cáo đã đổi nhưng màn hình vẫn hiện bản cũ). Tab "Dự án" và "Bộ
-    // phận" giờ LUÔN hiện khung xương (skeleton, đã có animation pulse sẵn) cho tới khi có dữ liệu
-    // THẬT mới nhất — không có trạng thái trung gian nào hiện nội dung chưa xác nhận là mới nhất.
-    // Tab "Thống kê BC"/"Danh sách DA" (dữ liệu thống kê/danh mục, không phải nội dung báo cáo cần
-    // quyết định theo — rủi ro thấp hơn nhiều) VẪN giữ cơ chế hiện cache cũ ngay rồi âm thầm thay
-    // bằng bản mới (tkbcNeedsRefresh/projectListNeedsRefresh bên dưới, không đổi).
+    // overview/dept-list/dept-map (Tab "Dự án"/"Bộ phận" — hiện NỘI DUNG BÁO CÁO thật): chỉ hydrate
+    // từ cache nếu cache CÒN MỚI (dưới 6 giờ, user yêu cầu 2026-07-20) — cache quá 6 giờ coi như
+    // không có gì, phải chờ dữ liệu THẬT mới nhất mới hiện (khung xương/skeleton), tránh đọc nhầm
+    // báo cáo lỗi thời nếu để app lâu không mở. tkbcNeedsRefresh/deptListNeedsRefresh-tương-đương ở
+    // đây thật ra không cần vì loadOverview()/loadDeptList()/loadDeptMap() bên dưới LUÔN tự chạy lại
+    // ngay sau (không có bước "đã có thì bỏ qua" như showTkbcTab/showDanhSachDaTab) — hydrate ở đây
+    // chỉ để HIỂN THỊ TẠM trong lúc chờ, không thay cho việc luôn tải lại thật.
+    var cachedOverview = loadCacheEntry_('overview');
+    if (cachedOverview && cachedOverview.data.ok && (Date.now() - cachedOverview.savedAt) < STALE_THRESHOLD_MS) overviewResp = cachedOverview.data;
+    var cachedDeptList = loadCacheEntry_('deptList');
+    if (cachedDeptList && cachedDeptList.data.ok && (Date.now() - cachedDeptList.savedAt) < STALE_THRESHOLD_MS) deptListResp = cachedDeptList.data;
+    var cachedDeptMap = loadCacheEntry_('deptMap');
+    if (cachedDeptMap && cachedDeptMap.data.ok && (Date.now() - cachedDeptMap.savedAt) < STALE_THRESHOLD_MS) deptMapResp = cachedDeptMap.data;
+    // tkbc/project-list (Thống kê BC/Danh sách DA): LUÔN hydrate bất kể cũ tới đâu — không đổi.
     var cachedTkbc = loadCache_('tkbc');
     if (cachedTkbc && cachedTkbc.ok) { tkbcResp = cachedTkbc; tkbcNeedsRefresh = true; }
     var cachedProjectList = loadCache_('projectList');
@@ -942,6 +1000,7 @@
     loadOverview();
     loadDeptList();
     loadDeptMap();
+    markFullRefreshNow_(); // Coi lần nạp đầu này là "vừa làm mới toàn bộ" -> reset đồng hồ 6 phút của cơ chế làm mới nền (xem maybeBackgroundRefreshAll_)
     // Kích hoạt tab MỞ ĐẦU TRƯỚC (ưu tiên nạp trước tiên) — PHẢI gọi switchTab(...) trước khi nạp
     // song song các tab khác bên dưới, vì switchTab() tự tăng các biến chống-race
     // (submitRequestId/priorityRequestId/tkbcRequestId/projectListRequestId) mỗi lần gọi — nếu nạp
@@ -1814,17 +1873,25 @@
   // Đọc trực tiếp file TKBC trung tâm (Code.js: webviewGetTKBC), tháng này + tháng trước, cấu
   // trúc CỐ ĐỊNH theo sheet "mm.yyyy" thật (xem parseTKBCSheet_).
 
-  function showTkbcTab() {
+  // force=true: bỏ qua điều kiện "đã có bản mới trong phiên rồi -> khỏi tải lại", LUÔN tải lại 1
+  // lần bất kể trạng thái tkbcNeedsRefresh — dùng bởi maybeBackgroundRefreshAll_() (cơ chế làm mới
+  // nền tối đa 1 lần/6 phút mỗi khi quay lại app, user yêu cầu 2026-07-20), KHÔNG dùng khi người
+  // dùng tự bấm vào tab (giữ nguyên hành vi cũ ở đó).
+  function showTkbcTab(force) {
     if (tkbcResp && tkbcResp.ok) {
       renderTkbc(); // Luôn vẽ ngay (dù dữ liệu là từ cache cũ hay đã tải thật trong phiên này)
-      if (!tkbcNeedsRefresh) return; // Đã có bản MỚI trong phiên này rồi -> không tải lại (giữ đúng ý "chỉ tải 1 lần/phiên" cũ)
+      if (!tkbcNeedsRefresh && !force) return; // Đã có bản MỚI trong phiên này rồi -> không tải lại (giữ đúng ý "chỉ tải 1 lần/phiên" cũ), TRỪ KHI force=true
       // KHÔNG xóa cờ tkbcNeedsRefresh ở đây (trước khi biết fetch bên dưới có thành công hay
       // không) — nếu xóa sớm rồi lần tải làm mới NÀY lại lỗi mạng, cờ đã mất nên các lần vào tab
       // SAU sẽ không bao giờ thử tải lại nữa, kẹt vĩnh viễn ở cache cũ suốt phiên (Reviewer phát
       // hiện 2026-07-20). Chỉ xóa cờ trong nhánh .then() khi CHẮC CHẮN đã có dữ liệu mới thật.
     }
     var myRequestId = ++tkbcRequestId;
-    if (!tkbcResp) $('tkbc-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    // force=true (làm mới nền) mà tkbcResp vẫn null (chưa từng tải thành công lần nào) -> KHÔNG
+    // hiện skeleton, cứ để yên màn hình đang có (kể cả thông báo lỗi cũ) — làm mới NỀN không được
+    // phép tự ý đổi giao diện đang hiện, chỉ được THAY THẾ khi có dữ liệu thật (Reviewer phát hiện
+    // 2026-07-20, ca hiếm: chưa có cache + lần tải đầu lỗi mạng + người dùng vẫn đứng ở tab đó).
+    if (!tkbcResp && !force) $('tkbc-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
     callServer('webviewGetTKBC', [currentPassword])
       .then(function (res) {
         if (myRequestId !== tkbcRequestId) return;
@@ -1896,15 +1963,17 @@
   // Đọc trực tiếp Project_List (Control) — Code.js webviewGetProjectList giữ NGUYÊN thứ tự dòng
   // gốc, client KHÔNG tự sắp xếp lại.
 
-  function showDanhSachDaTab() {
+  // force=true: cùng lý do force ở showTkbcTab() — dùng bởi maybeBackgroundRefreshAll_().
+  function showDanhSachDaTab(force) {
     if (projectListResp && projectListResp.ok) {
       renderDanhSachDaFiltered(); // Luôn vẽ ngay (dù dữ liệu là từ cache cũ hay đã tải thật trong phiên này)
-      if (!projectListNeedsRefresh) return;
+      if (!projectListNeedsRefresh && !force) return;
       // KHÔNG xóa cờ ở đây trước khi biết fetch có thành công hay không — cùng lý do tkbcNeedsRefresh
       // ở showTkbcTab() (Reviewer phát hiện 2026-07-20: xóa sớm + 1 lần lỗi mạng = kẹt cache cũ vĩnh viễn).
     }
     var myRequestId = ++projectListRequestId;
-    if (!projectListResp) $('danhsachda-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    // Cùng lý do force ở showTkbcTab() — làm mới nền không được tự ý hiện skeleton đè lên màn hình đang có.
+    if (!projectListResp && !force) $('danhsachda-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
     callServer('webviewGetProjectList', [currentPassword])
       .then(function (res) {
         if (myRequestId !== projectListRequestId) return;
