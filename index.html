@@ -2,54 +2,1848 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#1c4587">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="BC TDC">
 <title>Báo cáo TDC</title>
-<meta http-equiv="refresh" content="0; url=https://script.google.com/macros/s/AKfycbyMUgkfpMN3DNvty64pQ6ZA7U4AMnPN0ScjIi0oLjOr45PA4XD7ctakN10w2IR2e0pm8g/exec">
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20192%20192%22%3E%3Crect%20width%3D%22192%22%20height%3D%22192%22%20rx%3D%2236%22%20fill%3D%22%231c4587%22%2F%3E%3Crect%20x%3D%2246%22%20y%3D%2296%22%20width%3D%2224%22%20height%3D%2260%22%20rx%3D%224%22%20fill%3D%22%23fff%22%2F%3E%3Crect%20x%3D%2284%22%20y%3D%2270%22%20width%3D%2224%22%20height%3D%2286%22%20rx%3D%224%22%20fill%3D%22%23fff%22%2F%3E%3Crect%20x%3D%22122%22%20y%3D%2246%22%20width%3D%2224%22%20height%3D%22110%22%20rx%3D%224%22%20fill%3D%22%23fff%22%2F%3E%3C%2Fsvg%3E">
+<!-- PWA THẬT (BẢN 2026-07-20) — thay cho bản trước phải chạy bên trong iframe do Apps Script tự
+     phục vụ (script.google.com/.../exec), file này host TRỰC TIẾP trên GitHub Pages
+     (tdc-hcm.github.io) như 1 trang top-level bình thường, gọi dữ liệu qua fetch() JSON API
+     (Code.js: doGet/doPost action-based) thay cho google.script.run. Nhờ vậy: có icon cài vào màn
+     hình chính thật (manifest.json + icon PNG thật, không còn data-URI SVG), không hiện banner
+     "Created by a Google Apps Script user" của Google (banner đó gắn ở trang wrapper
+     script.google.com khi ĐIỀU HƯỚNG TRỰC TIẾP tới đó — app này không bao giờ điều hướng người
+     dùng tới URL đó nữa, chỉ fetch() ngầm), History API hoạt động thật (không còn bị chặn bởi
+     ranh giới iframe khác domain) — xem chi tiết từng điểm trong code bên dưới. -->
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
 <style>
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: #f6f8fb; color: #16202e;
-    display: flex; align-items: center; justify-content: center; min-height: 100vh; text-align: center;
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f8fb; --surface: #ffffff; --surface-alt: #eef2f8; --border: #dbe2ec;
+    --text: #16202e; --text-muted: #5b6b81; --accent: #1c4587; --accent-strong: #123164;
+    --accent-soft: #e7edf9; --priority-bg: #fffbea; --priority-border: #e0b84a; --priority-text: #8a6a10;
+    --ok-bg: #eaf7ee; --ok-border: #55a36a; --ok-text: #1f7a3d;
+    --bad-bg: #fdecec; --bad-border: #d97373; --bad-text: #c0392b;
+    --shadow: 0 1px 2px rgba(22,32,46,.06), 0 1px 12px rgba(22,32,46,.05);
+    --radius: 14px;
+    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
   }
-  .box { padding: 24px; }
-  .logo {
-    width: 56px; height: 56px; border-radius: 14px; background: #1c4587; margin: 0 auto 18px;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .logo svg { width: 28px; height: 28px; }
-  h1 { font-size: 17px; margin: 0 0 6px; color: #16202e; }
-  p { font-size: 13px; color: #5b6b81; margin: 0; }
-  .spinner {
-    width: 22px; height: 22px; border: 3px solid #dbe2ec; border-top-color: #1c4587; border-radius: 50%;
-    margin: 18px auto 0; animation: spin .8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  noscript p { margin-top: 10px; }
-  a { color: #1c4587; }
   @media (prefers-color-scheme: dark) {
-    body { background: #0e1420; color: #e7ecf5; }
-    h1 { color: #e7ecf5; }
-    p { color: #8fa0ba; }
-    .spinner { border-color: #2a3547; border-top-color: #7ea3e8; }
-    a { color: #7ea3e8; }
+    :root {
+      --bg: #0e1420; --surface: #151d2c; --surface-alt: #1c2739; --border: #2a3547;
+      --text: #e7ecf5; --text-muted: #8fa0ba; --accent: #7ea3e8; --accent-strong: #a9c4f2;
+      --accent-soft: #1e2c47; --priority-bg: #332b14; --priority-border: #caa53f; --priority-text: #e4c669;
+      --ok-bg: #16301f; --ok-border: #3f8f57; --ok-text: #6fd18d;
+      --bad-bg: #35191a; --bad-border: #b5504b; --bad-text: #ef8985;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 1px 16px rgba(0,0,0,.35);
+    }
   }
+  :root[data-theme="dark"] {
+    --bg: #0e1420; --surface: #151d2c; --surface-alt: #1c2739; --border: #2a3547;
+    --text: #e7ecf5; --text-muted: #8fa0ba; --accent: #7ea3e8; --accent-strong: #a9c4f2;
+    --accent-soft: #1e2c47; --priority-bg: #332b14; --priority-border: #caa53f; --priority-text: #e4c669;
+    --ok-bg: #16301f; --ok-border: #3f8f57; --ok-text: #6fd18d;
+    --bad-bg: #35191a; --bad-border: #b5504b; --bad-text: #ef8985;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 1px 16px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f8fb; --surface: #ffffff; --surface-alt: #eef2f8; --border: #dbe2ec;
+    --text: #16202e; --text-muted: #5b6b81; --accent: #1c4587; --accent-strong: #123164;
+    --accent-soft: #e7edf9; --priority-bg: #fffbea; --priority-border: #e0b84a; --priority-text: #8a6a10;
+    --ok-bg: #eaf7ee; --ok-border: #55a36a; --ok-text: #1f7a3d;
+    --bad-bg: #fdecec; --bad-border: #d97373; --bad-text: #c0392b;
+    --shadow: 0 1px 2px rgba(22,32,46,.06), 0 1px 12px rgba(22,32,46,.05);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: var(--font-ui); background: var(--bg); color: var(--text); -webkit-tap-highlight-color: transparent; }
+  button, input { font-family: inherit; color: var(--text); }
+  button:focus-visible, input:focus-visible, .dept-card:focus-visible, .project-head:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h1, h2, p, span, div { color: inherit; }
+
+  #app { max-width: 760px; margin: 0 auto; min-height: 100vh; background: var(--bg); }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; padding: 12px 8px; color: var(--text);
+  }
+  .topbar .back-btn {
+    width: 64px; height: 34px; border-radius: 10px; border: none; background: var(--surface-alt);
+    color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer;
+    flex-shrink: 0; font-size: 20px; line-height: 1;
+  }
+  .topbar .back-btn.hidden { visibility: hidden; }
+  .topbar h1 { font-size: 16px; font-weight: 700; margin: 0; flex: 1; color: var(--text); }
+  .topbar .subtitle { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+
+  .tabbar {
+    /* Header "Xem THBC" chỉ hiện khi vào chi tiết 1 bộ phận (ẩn mặc định, xem JS) nên tabbar
+       luôn dính ở top:0 khi hiện, không cần chừa chỗ cho header phía trên như trước. */
+    position: sticky; top: 0; z-index: 19; background: var(--bg);
+    display: flex; gap: 5px; padding: 10px 8px 8px;
+    overflow: hidden; max-height: 64px; transition: max-height .16s ease-out, padding .16s ease-out;
+    will-change: max-height;
+  }
+  /* "Ẩn thông minh" khi cuộn xuống (CONFIG_SETTINGS!SmartHideHeader) — thu chiều cao về 0 thay vì
+     translateY, vì tabbar dùng position:sticky (translateY trên phần tử sticky để lại khoảng
+     trống, không thực sự nhường chỗ cho nội dung bên dưới trồi lên). Rút ngắn thời gian animation
+     (.16s thay vì .22s, bỏ ease thường sang ease-out) để đỡ giật trên điện thoại yếu — animation
+     max-height buộc trình duyệt tính lại layout mỗi khung hình, thời gian càng ngắn thì số khung
+     hình phải tính càng ít (user phản ánh 2026-07-19: "cơ chế ẩn tab hơi giật"). */
+  .tabbar.scroll-hidden { max-height: 0; padding-top: 0; padding-bottom: 0; }
+  .tab-btn {
+    flex: 1; min-width: 0; padding: 8px 2px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); cursor: pointer; line-height: 1.15;
+    word-break: break-word;
+    /* Cỡ chữ tự co theo bề rộng màn hình (vw) thay vì cố định — với 6 nút tab chia đều 1 hàng,
+       màn hình càng hẹp thì mỗi nút càng ít chỗ, chữ tự nhỏ lại theo tỉ lệ để luôn vừa trong khung
+       nút thay vì tràn/bị cắt (user phản ánh 2026-07-19: "Danh sách DA", "Gửi báo cáo" bị tràn). */
+    font-size: clamp(10px, 2.7vw, 13.5px); font-weight: 700;
+  }
+  .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .view { display: none; }
+  .view.active { display: block; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .login-wrap { padding: 22vh 24px 24px; text-align: center; }
+  .login-wrap .logo { font-size: 32px; margin-bottom: 6px; }
+  .login-wrap h2 { font-size: 20px; margin: 0 0 4px; color: var(--text); }
+  .login-wrap p { font-size: 13px; color: var(--text-muted); margin: 0 0 20px; }
+  input[type=password], input[type=text] {
+    width: 100%; padding: 13px 14px; font-size: 16px; border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 10px; background: var(--surface); color: var(--text);
+  }
+  button.primary {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 600; background: var(--accent); color: #fff;
+    border: none; border-radius: 10px; cursor: pointer;
+  }
+  button.primary:active { background: var(--accent-strong); }
+  button.primary:disabled { opacity: .55; }
+  .error-text { color: #e05252; font-size: 13px; margin: 8px 0 0; min-height: 18px; }
+
+  /* Nút tròn nổi + ô tìm kiếm trượt ra — thay cho ô tìm kiếm cố định trên đầu mỗi tab (phải cuộn
+     lên đầu trang mới bấm được) — user yêu cầu 2026-07-19: cố định 1 nút tròn ở góc phải trên,
+     bấm để trượt ra ô nhập, bấm lại để ẩn + xóa từ khóa. Nút + ô đều position:fixed nên LUÔN ở
+     nguyên 1 chỗ trên màn hình bất kể đang cuộn tới đâu trong danh sách. */
+  .search-fab {
+    position: fixed; top: 76px; right: 16px; z-index: 30;
+    width: 42px; height: 42px; border-radius: 50%; border: none;
+    background: var(--accent); color: #fff; box-shadow: var(--shadow);
+    align-items: center; justify-content: center; cursor: pointer; display: none;
+  }
+  .search-fab.show { display: flex; }
+  .search-fab.open { background: var(--accent-strong); }
+  /* Mỗi tab-panel vẫn giữ 1 <div class="search-bar"> riêng (không gộp DOM) để không phải viết lại
+     mọi hàm renderXFiltered() đang đọc đúng id ô nhập của tab mình — chỉ đổi CÁCH HIỂN THỊ từ nằm
+     trong luồng trang sang nổi cố định. Vì ancestor .tab-panel/#dept-detail-area vẫn display:none
+     khi không active, tại 1 thời điểm chỉ có tối đa 1 ô đang thực sự hiện trên màn hình. */
+  .search-bar {
+    position: fixed; top: 76px; right: 66px; z-index: 29; height: 42px;
+    width: 0; opacity: 0; pointer-events: none; overflow: hidden;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 21px;
+    box-shadow: var(--shadow); transition: width .2s ease, opacity .15s ease;
+  }
+  .search-bar.open { width: min(68vw, 300px); opacity: 1; pointer-events: auto; }
+  .search-input-wrap { position: relative; display: flex; align-items: center; height: 100%; }
+  .search-input-wrap svg { position: absolute; left: 14px; opacity: .5; pointer-events: none; color: var(--text-muted); }
+  .search-input-wrap input {
+    padding: 0 12px 0 36px; margin-bottom: 0; height: 100%; width: 100%;
+    border: none; border-radius: 21px; background: transparent;
+  }
+
+  .home-intro { padding: 14px 8px 2px; }
+  .home-intro p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
+  .dept-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 14px 8px 24px; }
+  .dept-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;
+    text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow);
+  }
+  .dept-card:active { transform: scale(.97); }
+  .dept-avatar { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 700; font-size: 12px; color: #fff; flex-shrink: 0; }
+  .dept-name { font-size: 13.5px; font-weight: 700; line-height: 1.3; color: var(--text); }
+
+  .ban-group { padding: 10px 8px 0; }
+  .ban-title-row {
+    display: flex; align-items: center; gap: 6px; cursor: pointer; margin: 16px 0 8px;
+    background: var(--accent-soft); border-radius: 8px; padding: 7px 10px 7px 12px;
+  }
+  .ban-title-row.priority { background: var(--priority-bg); border: 1px solid var(--priority-border); }
+  .ban-title { font-size: 13.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--accent); flex: 1; }
+  .ban-title.priority { color: var(--priority-text); }
+  .ban-chevron { color: var(--accent); transition: transform .18s ease; flex-shrink: 0; }
+  .ban-title-row.priority .ban-chevron { color: var(--priority-text); }
+  .ban-group.collapsed .ban-chevron { transform: rotate(-90deg); }
+  .ban-group.collapsed .project-row,
+  .ban-group.collapsed .flat-card,
+  .ban-group.collapsed .priority-card { display: none; }
+
+  .project-row { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; box-shadow: var(--shadow); }
+  .project-row.priority { border-color: var(--priority-border); }
+  .project-head { display: flex; align-items: center; gap: 10px; padding: 12px; cursor: pointer; }
+  .project-row.priority .project-head { background: var(--priority-bg); }
+  .project-info { flex: 1; min-width: 0; }
+  .project-name { font-size: 14px; font-weight: 700; line-height: 1.3; color: var(--text); }
+  .project-sub { font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 1px; }
+  .chevron { color: var(--text-muted); transition: transform .18s ease; flex-shrink: 0; }
+  .project-row.open .chevron { transform: rotate(180deg); }
+  .project-body { max-height: 0; overflow: hidden; transition: max-height .22s ease; border-top: 1px solid transparent; }
+  .project-row.open .project-body { border-top-color: var(--border); }
+
+  .block-report { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .block-report:last-child { border-bottom: none; }
+  .block-name { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 5px; }
+  .block-text { font-size: 13.5px; line-height: 1.55; color: var(--text); }
+
+  /* Tab BỘ PHẬN — thẻ dự án phẳng, tên trên cùng, nội dung luôn hiện (không xổ) */
+  /* KHÔNG có margin ngang riêng — thẻ này luôn nằm trong .ban-group (đã có padding ngang của
+     riêng nó), thêm margin ngang ở đây nữa sẽ CỘNG DỒN khiến nội dung thẻ thụt vào sâu hơn hẳn so
+     với tiêu đề "CÁC DỰ ÁN ƯU TIÊN"/tên Ban phía trên (lỗi user phản ánh 2026-07-19). */
+  .flat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; margin: 0 0 10px; box-shadow: var(--shadow); }
+  .flat-card.priority { border-color: var(--priority-border); background: var(--priority-bg); }
+  .flat-card-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .flat-card .project-name { font-size: 14.5px; }
+  .priority-badge { font-size: 10px; font-weight: 700; font-family: var(--font-ui); color: var(--priority-text); background: rgba(224,184,74,.22); border: 1px solid var(--priority-border); padding: 2px 7px; border-radius: 999px; }
+  .flat-card .block-text { font-size: 13.5px; }
+
+  /* Tab GỬI BÁO CÁO */
+  .edit-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; margin: 0 8px 10px; box-shadow: var(--shadow); }
+  .edit-card.dirty { border-color: var(--accent); border-width: 2px; }
+  .edit-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .edit-card-head .project-name { flex: 1; }
+  .dirty-badge { font-size: 10px; font-weight: 700; color: #fff; background: var(--accent); padding: 2px 7px; border-radius: 999px; flex-shrink: 0; }
+  .edit-field { margin-top: 8px; }
+  .edit-field label { font-size: 12px; font-weight: 700; color: var(--accent); display: block; margin-bottom: 4px; }
+  .bool-field.edit-field { margin-top: 10px; }
+  .bool-label { display: flex !important; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 0 !important; }
+  .bool-label input.bool-input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); margin: 0; }
+  .bool-label span { font-size: 13px; font-weight: 700; color: var(--accent); }
+  textarea.edit-input {
+    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; line-height: 1.45;
+    background: var(--surface-alt); color: var(--text); font-size: 13.5px; font-family: inherit; resize: none;
+    overflow-y: hidden; box-sizing: border-box;
+  }
+  .submit-bar {
+    position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border);
+    padding: 10px 8px; z-index: 25;
+  }
+  .submit-bar button.primary { margin: 0; }
+
+  /* Tab ƯU TIÊN (Ban TGĐ) */
+  .tab-btn.hidden-role { display: none; }
+  /* Cùng lý do .flat-card ở trên — luôn nằm trong .ban-group, không tự thêm margin ngang nữa. */
+  .priority-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; margin: 0 0 10px; box-shadow: var(--shadow); }
+  .priority-card.set { border-color: var(--priority-border); }
+  .priority-card-head { margin-bottom: 10px; }
+  .priority-chips { display: flex; gap: 6px; }
+  .priority-chip {
+    flex: 1; padding: 9px 0; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-alt);
+    color: var(--text); font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: var(--font-mono);
+  }
+  .priority-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .priority-chip.clear { flex: 1.4; font-family: var(--font-ui); color: var(--text-muted); font-weight: 600; }
+  .priority-chip.clear.active { background: var(--priority-bg); border-color: var(--priority-border); color: var(--priority-text); }
+
+  /* Field kiểu list (dropdown) trong Tab GỬI BÁO CÁO — hiện GỌN, cùng hàng với nhãn (ít đổi, ví
+     dụ "Ưu tiên" của KH), khác với các ô nhập chữ tự do bên dưới vốn cần nhiều không gian hơn. */
+  .edit-field.inline-list { display: flex; align-items: center; gap: 8px; }
+  .edit-field.inline-list label { margin-bottom: 0; flex-shrink: 0; }
+  .priority-chips.compact { flex: 1; gap: 4px; }
+  .priority-chips.compact .priority-chip { padding: 6px 0; font-size: 12px; border-radius: 7px; }
+  .priority-chips.compact .priority-chip.clear { flex: 1.2; }
+
+  /* Tab THỐNG KÊ BC */
+  /* Tiêu đề tháng làm NỔI BẬT hơn hẳn (cỡ chữ lớn + đậm + màu accent thay vì chữ mờ nhỏ) — đây là
+     mốc quan trọng nhất của cả tab, user yêu cầu 2026-07-19 "chữ to/nổi bật hơn". */
+  .tkbc-month-title { font-size: 17px; font-weight: 800; letter-spacing: .01em; color: var(--accent); padding: 18px 8px 8px; }
+  .tkbc-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 13px 14px; margin: 0 8px 10px; box-shadow: var(--shadow); }
+  .tkbc-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tkbc-name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .tkbc-timestamp { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+  .tkbc-stats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tkbc-stat-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid; }
+  .tkbc-stat-badge.ok { background: var(--ok-bg); border-color: var(--ok-border); color: var(--ok-text); }
+  .tkbc-stat-badge.bad { background: var(--bad-bg); border-color: var(--bad-border); color: var(--bad-text); }
+  .tkbc-days { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px; }
+  /* Rộng hơn bản trước (34px -> 46px) để chứa được "Thứ, ngày" (vd "T4, 1") CHUNG 1 DÒNG — user
+     yêu cầu 2026-07-19, kèm white-space:nowrap phòng khi ngày 2 chữ số (vd "T4, 31") vẫn không bị
+     đẩy xuống dòng dưới dù cỡ chữ đã khá nhỏ. */
+  .tkbc-day { flex-shrink: 0; width: 46px; text-align: center; border-radius: 8px; padding: 5px 2px; border: 1px solid var(--border); background: var(--surface-alt); }
+  .tkbc-day .d-num { font-size: 9px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; }
+  .tkbc-day .d-status { font-size: 12px; font-weight: 700; font-family: var(--font-mono); }
+  .tkbc-day.ontime { background: var(--ok-bg); border-color: var(--ok-border); }
+  .tkbc-day.ontime .d-status { color: var(--ok-text); }
+  .tkbc-day.late { background: var(--priority-bg); border-color: var(--priority-border); }
+  .tkbc-day.late .d-status { color: var(--priority-text); }
+  .tkbc-day.missed { background: var(--bad-bg); border-color: var(--bad-border); }
+  .tkbc-day.missed .d-status { color: var(--bad-text); }
+  .tkbc-legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 4px 8px 16px; font-size: 11.5px; color: var(--text-muted); }
+  .tkbc-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .tkbc-legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* Tab DANH SÁCH DA */
+  .da-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin: 0 8px 8px; box-shadow: var(--shadow); }
+  .da-card-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+  .da-id-badge { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
+  .da-name { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.35; }
+  .da-meta { font-size: 11.5px; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  .da-meta b { color: var(--text); font-weight: 600; }
+
+  .state-msg { text-align: center; padding: 60px 24px; color: var(--text-muted); font-size: 13.5px; }
+  .state-msg .icon { font-size: 30px; margin-bottom: 10px; opacity: .5; }
+  .skeleton { padding: 16px 8px; }
+  /* Ô tìm kiếm giờ nổi cố định (.search-fab/.search-bar) thay vì nằm trong luồng trang, nên các
+     khối nội dung không còn được nó "đẩy" xuống 1 khoảng như trước — bù lại chút đệm trên cùng để
+     không dính sát mép dưới tabbar. */
+  #submit-content, #priority-content, #danhsachda-content { padding-top: 10px; }
+  .skeleton .bar { height: 54px; background: var(--surface-alt); border-radius: 12px; margin-bottom: 10px; animation: pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+  footer.foot-note { text-align: center; font-size: 11px; color: var(--text-muted); padding: 18px 20px 26px; }
+
+  /* Toast tự tắt — thay cho alert() gốc trình duyệt (hiện khung "Một trang được nhúng tại..."
+     rất xấu, bắt bấm OK) — chỉ hiện 1 dòng nổi, tự biến mất, không chặn thao tác tiếp theo. */
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(12px);
+    max-width: calc(100% - 32px); background: var(--accent-strong); color: #fff; font-size: 13.5px;
+    font-weight: 600; padding: 12px 18px; border-radius: 12px; box-shadow: var(--shadow);
+    opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease; z-index: 999;
+    text-align: center;
+  }
+  .toast.error { background: #c0392b; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .logout-link { text-align: center; padding: 4px 20px 22px; color: var(--text-muted); font-size: 12.5px; text-decoration: underline; cursor: pointer; }
 </style>
 </head>
 <body>
-  <div class="box">
-    <div class="logo">
-      <svg viewBox="0 0 192 192" fill="none"><rect x="46" y="96" width="24" height="60" rx="4" fill="#fff"/><rect x="84" y="70" width="24" height="86" rx="4" fill="#fff"/><rect x="122" y="46" width="24" height="110" rx="4" fill="#fff"/></svg>
+<div id="app">
+
+  <header class="topbar" id="topbar" style="display:none;">
+    <button class="back-btn hidden" id="back-btn">←</button>
+    <div style="flex:1; min-width:0;">
+      <h1 id="topbar-title">Xem THBC</h1>
+      <div class="subtitle" id="topbar-sub"></div>
     </div>
-    <h1>Báo cáo TDC</h1>
-    <p>Đang chuyển hướng đến ứng dụng...</p>
-    <div class="spinner"></div>
-    <noscript><p>Nếu không tự chuyển, <a href="https://script.google.com/macros/s/AKfycbyMUgkfpMN3DNvty64pQ6ZA7U4AMnPN0ScjIi0oLjOr45PA4XD7ctakN10w2IR2e0pm8g/exec">bấm vào đây</a>.</p></noscript>
+  </header>
+
+  <div class="tabbar" id="tabbar" style="display:none;">
+    <button class="tab-btn active" id="tab-btn-projects" data-tab="projects">Dự án</button>
+    <button class="tab-btn" id="tab-btn-departments" data-tab="departments">Bộ phận</button>
+    <button class="tab-btn hidden-role" id="tab-btn-submit" data-tab="submit">Gửi báo cáo</button>
+    <button class="tab-btn hidden-role" id="tab-btn-priority" data-tab="priority">Ưu tiên</button>
+    <button class="tab-btn hidden-role" id="tab-btn-tkbc" data-tab="tkbc">Thống kê BC</button>
+    <button class="tab-btn hidden-role" id="tab-btn-danhsachda" data-tab="danhsachda">Danh sách DA</button>
   </div>
-  <script>
-    window.location.replace("https://script.google.com/macros/s/AKfycbyMUgkfpMN3DNvty64pQ6ZA7U4AMnPN0ScjIi0oLjOr45PA4XD7ctakN10w2IR2e0pm8g/exec");
-  </script>
+
+  <div class="view active" id="view-login">
+    <div class="login-wrap">
+      <div class="logo">&#128202;</div>
+      <h2 id="app-title-h2">Báo cáo TDC</h2>
+      <p>Nhập mật khẩu nội bộ để tiếp tục</p>
+      <input type="password" id="password-input" placeholder="Mật khẩu" autocomplete="current-password">
+      <button class="primary" id="login-btn">Đăng nhập</button>
+      <div class="error-text" id="login-error"></div>
+    </div>
+  </div>
+
+  <div class="view" id="view-main">
+
+    <button class="search-fab" id="search-fab" aria-label="Tìm kiếm">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+    </button>
+
+    <div class="tab-panel active" id="tab-projects">
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+          <input id="search-input-projects" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+        </div>
+      </div>
+      <div id="projects-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-departments">
+      <div id="dept-grid-area">
+        <div class="home-intro"><p>Chọn bộ phận để xem báo cáo riêng của bộ phận đó.</p></div>
+        <div class="skeleton"><div class="bar"></div><div class="bar"></div></div>
+      </div>
+      <div id="dept-detail-area" style="display:none;">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+            <input id="search-input-dept" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+          </div>
+        </div>
+        <div id="dept-detail-content"></div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-submit">
+      <div class="home-intro"><p id="submit-dept-intro"></p></div>
+      <div id="submit-list-area">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+            <input id="search-input-submit" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+          </div>
+        </div>
+        <div id="submit-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
+      </div>
+      <div class="submit-bar" id="submit-bar" style="display:none;">
+        <button class="primary" id="submit-send-btn"><span id="submit-label">Gửi báo cáo</span> (<span id="submit-count">0</span>)</button>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-priority">
+      <div class="home-intro"><p>Chạm vào mức 1–5 để đặt ưu tiên hiển thị đầu THBC (1 = ưu tiên cao nhất). Chạm "Bỏ" để gỡ ưu tiên.</p></div>
+      <div id="priority-list-area">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+            <input id="search-input-priority" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+          </div>
+        </div>
+        <div id="priority-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
+      </div>
+      <div class="submit-bar" id="priority-bar" style="display:none;">
+        <button class="primary" id="priority-save-btn"><span id="priority-label">Lưu thay đổi</span> (<span id="priority-count">0</span>)</button>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-tkbc">
+      <div id="tkbc-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-danhsachda">
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+          <input id="search-input-danhsachda" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+        </div>
+      </div>
+      <div id="danhsachda-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
+    </div>
+
+    <footer class="foot-note">Nội bộ công ty · dữ liệu chỉ để xem</footer>
+    <div class="logout-link" id="logout-link">Đăng xuất / đổi mật khẩu</div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+</div>
+
+<script>
+(function () {
+  var STORAGE_KEY = 'bc_webview_password';
+  var currentPassword = localStorage.getItem(STORAGE_KEY) || '';
+  var currentTab = 'projects';
+  var deptDetailData = null;
+  var collapsedBanGroups = {}; // "Tên Ban" -> true nếu đang thu gọn — phải lưu NGOÀI renderProjectsFiltered() để không bị xóa mỗi khi gõ tìm kiếm làm render lại (lỗi Reviewer phát hiện 2026-07-19)
+  var openProjectIds = {}; // "Mã dự án" -> true nếu báo cáo đang xổ ra ở Tab Dự án — lưu theo MÃ DỰ
+                            // ÁN (không theo id dòng "proj-<nhóm>-<thứ tự>", vì id dòng đổi mỗi lần
+                            // lọc/tìm kiếm khác nhau) để render lại (gõ tìm kiếm, tắt tìm kiếm) vẫn
+                            // giữ đúng báo cáo nào đang mở (user phản ánh 2026-07-19: tắt tìm kiếm
+                            // sau khi đã mở báo cáo 1 dự án thì báo cáo đó tự đóng lại).
+  var openRequestId = 0;
+  var searchOverlayOpen = false; // Trạng thái nút tròn tìm kiếm nổi (search-fab) đang mở hay đóng
+  var searchWasOpenByTab = {}; // "search-input-X" -> true nếu tab đó đang ĐỂ Ở trạng thái mở (kể cả
+                                // lúc không phải tab hiện tại) — để tự mở lại khi quay về đúng tab
+                                // thay vì luôn đóng khi chuyển đi (user yêu cầu 2026-07-19).
+  var mainEntered = false; // Chặn enterMain() chạy 2 lần nếu auto-login (lúc mở trang) và người
+                            // dùng tự bấm "Đăng nhập" trùng thời điểm đều thành công.
+
+  // ---- Vai trò đăng nhập (BẢN 5) — suy ra từ ĐÚNG mật khẩu nào khớp (webviewLogin ở Code.js),
+  // KHÔNG lưu localStorage riêng: mỗi lần mở app (kể cả auto-login) đều gọi lại webviewLogin để
+  // lấy vai trò MỚI NHẤT từ server, tránh hiện sai giao diện nếu quản trị đổi mật khẩu/vai trò. ----
+  var currentRole = null;     // 'viewer' | 'manager' | 'btgd'
+  var currentDeptCode = null; // chỉ có giá trị khi currentRole === 'manager'
+  var currentDeptName = null;
+  var currentCanViewTKBC = false; // Suy ra từ CONFIG_SETTINGS!TKBC_Visible_Roles (Code.js) — KHÔNG hardcode role ở client nữa
+  var currentCanViewProjectList = false; // Suy ra từ CONFIG_SETTINGS!DanhSachDA_Visible_Roles (Code.js)
+  var scrollHideEnabled = false; // Suy ra từ CONFIG_SETTINGS!SmartHideHeader (Code.js)
+  var tabbarScrollHidden = false;
+  var scrollLastY = 0;
+  var scrollDownRun = 0; // Tổng khoảng cách cuộn XUỐNG liên tục (reset ngay khi vuốt lên dù chỉ 1 chút)
+  var scrollTicking = false;
+
+  // ---- Trạng thái riêng cho Tab GỬI BÁO CÁO (role "manager") — dùng lại currentPassword +
+  // currentDeptCode đã có từ lúc đăng nhập, KHÔNG còn màn hình chọn bộ phận/nhập mật khẩu lần 2
+  // như bản trước (mật khẩu đăng nhập của quản lý bộ phận CHÍNH LÀ mật khẩu gửi báo cáo, xem
+  // Code.js webviewCheckSubmitPassword_). ----
+  var submitProjectsResp = null; // Kết quả webviewGetMyProjects (danh sách dự án + giá trị NHAPBC hiện tại)
+  var pendingEdits = {}; // "Mã dự án" -> { "Tên trường": "giá trị mới" } — CHƯA gửi, chỉ giữ ở client
+  var submitRequestId = 0; // Cùng cơ chế chống race với openRequestId nhưng tách riêng vì đây là luồng độc lập
+  var submitInFlight = false; // Chốt chặn không cho gửi chồng lần 2 khi lần trước chưa xong (xem doSubmitReports)
+
+  // ---- Trạng thái riêng cho Tab ƯU TIÊN (role "btgd") ----
+  var priorityMapResp = null; // Kết quả webviewGetPriorityList ({ok, map: "Mã dự án"->"1".."5"})
+  var pendingPriority = {};   // Bản nháp ở client, khởi tạo = sao chép priorityMapResp.map lúc tải
+  var priorityRequestId = 0;
+  var priorityInFlight = false; // Chốt chặn không cho lưu chồng lần 2 khi lần trước chưa xong (xem doSavePriority)
+
+  // ---- Trạng thái riêng cho Tab THỐNG KÊ BC (role "manager"/"btgd") ----
+  var tkbcResp = null; // Kết quả webviewGetTKBC ({ok, months: [...]})
+  var tkbcRequestId = 0;
+
+  // ---- Trạng thái riêng cho Tab DANH SÁCH DA ----
+  var projectListResp = null; // Kết quả webviewGetProjectList ({ok, projects: [...]})
+  var projectListRequestId = 0;
+
+  // Cache 3 nguồn dữ liệu NGAY SAU KHI ĐĂNG NHẬP (enterMain) — tránh gọi lại server mỗi lần
+  // người dùng chuyển tab/chạm vào 1 bộ phận (nguyên nhân chính gây chậm 10-20s user phản ánh
+  // 2026-07-18: bản trước gọi webviewGetDepartmentReports — đọc lại TOÀN BỘ sheet THBC bằng
+  // RichText — mỗi lần chạm vào 1 bộ phận). Tab BỘ PHẬN giờ tự lọc từ overviewResp +
+  // deptMapResp đã có sẵn trong bộ nhớ, không đọc lại sheet nữa.
+  var overviewResp = null; var overviewCbs = [];
+  var deptListResp = null; var deptListCbs = [];
+  var deptMapResp = null; var deptMapCbs = [];
+
+  // Gọi backend Apps Script (WEBVIEW_THBC) qua fetch() thay cho google.script.run — bắt buộc vì
+  // đây là PWA độc lập tải từ domain riêng (GitHub Pages), không còn chạy BÊN TRONG trang do Apps
+  // Script tự phục vụ nữa (nơi duy nhất google.script.run hoạt động được). GET cho lệnh chỉ đọc
+  // (args nhỏ, an toàn nằm trong URL), POST cho lệnh có ghi dữ liệu (webviewSubmitReports/
+  // webviewSetPriority — payload có thể khá dài) dùng Content-Type: text/plain để tránh CORS
+  // preflight (Apps Script không tự xử lý được request OPTIONS, xem doPost ở Code.js).
+  var API_BASE = 'https://script.google.com/macros/s/AKfycbyMUgkfpMN3DNvty64pQ6ZA7U4AMnPN0ScjIi0oLjOr45PA4XD7ctakN10w2IR2e0pm8g/exec';
+  var POST_ACTIONS = { webviewSubmitReports: true, webviewSetPriority: true };
+  function callServer(action, args) {
+    var isPost = !!POST_ACTIONS[action];
+    var url = isPost ? API_BASE : (API_BASE + '?action=' + encodeURIComponent(action) + '&args=' + encodeURIComponent(JSON.stringify(args || [])));
+    var opts = isPost
+      ? { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: action, args: args || [] }) }
+      : {};
+    return fetch(url, opts).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  function flushCbs(arr) { for (var i = 0; i < arr.length; i++) arr[i](); }
+
+  function ensureOverview(cb) { if (overviewResp) cb(); else overviewCbs.push(cb); }
+  function ensureDeptList(cb) { if (deptListResp) cb(); else deptListCbs.push(cb); }
+  function ensureDeptMap(cb) { if (deptMapResp) cb(); else deptMapCbs.push(cb); }
+
+  function loadOverview() {
+    callServer('webviewGetProjectsOverview', [currentPassword])
+      .then(function (res) { overviewResp = res; var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs); })
+      .catch(function (err) { overviewResp = { ok: false, error: 'Lỗi kết nối: ' + err.message }; var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs); });
+  }
+
+  function loadDeptList() {
+    callServer('webviewGetDepartmentList', [currentPassword])
+      .then(function (res) { deptListResp = res; var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs); })
+      .catch(function (err) { deptListResp = { ok: false, error: 'Lỗi kết nối: ' + err.message }; var cbs = deptListCbs; deptListCbs = []; flushCbs(cbs); });
+  }
+
+  function loadDeptMap() {
+    callServer('webviewGetProjectDepartmentMap', [currentPassword])
+      .then(function (res) { deptMapResp = res; var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs); })
+      .catch(function (err) { deptMapResp = { ok: false, error: 'Lỗi kết nối: ' + err.message }; var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs); });
+  }
+
+  function $(id) { return document.getElementById(id); }
+
+  // Toast tự tắt sau 5s — thay cho alert() gốc trình duyệt (hiện khung nhúng rất xấu, bắt bấm OK,
+  // trải nghiệm không mượt trên giao diện người dùng cuối — user yêu cầu 2026-07-19).
+  var toastTimer = null;
+  function showToast(message, isError) {
+    var el = $('toast');
+    el.textContent = message;
+    el.classList.toggle('error', !!isError);
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 5000);
+  }
+
+  // ---- Nút tròn tìm kiếm nổi (search-fab) — thay cho ô tìm kiếm cố định trên đầu mỗi tab, giờ
+  // ô nhập chỉ hiện khi bấm nút, và LUÔN ở nguyên 1 vị trí trên màn hình (position:fixed) nên bấm
+  // được ngay cả khi đã cuộn xuống sâu (user yêu cầu 2026-07-19). Vẫn giữ nguyên 5 <input
+  // id="search-input-X"> riêng của từng tab — chỉ đổi cách HIỂN THỊ, không gộp DOM, nên mọi hàm
+  // renderXFiltered() sẵn có không cần sửa gì. ----
+  function getActiveSearchInputId_() {
+    if (currentTab === 'projects') return 'search-input-projects';
+    if (currentTab === 'departments') return ($('dept-detail-area').style.display !== 'none') ? 'search-input-dept' : null;
+    if (currentTab === 'submit') return 'search-input-submit';
+    if (currentTab === 'priority') return 'search-input-priority';
+    if (currentTab === 'danhsachda') return 'search-input-danhsachda';
+    return null;
+  }
+
+  function triggerSearchRerender_(id) {
+    if (id === 'search-input-projects') renderProjectsFiltered();
+    else if (id === 'search-input-dept') renderDeptDetailFiltered();
+    else if (id === 'search-input-submit') renderSubmitFiltered();
+    else if (id === 'search-input-priority') renderPriorityFiltered();
+    else if (id === 'search-input-danhsachda') renderDanhSachDaFiltered();
+  }
+
+  // Chỉ hiện nút tròn ở những màn hình THỰC SỰ có ô tìm kiếm tương ứng (ẩn ở lưới chọn bộ phận
+  // trước khi chạm vào 1 bộ phận cụ thể — màn đó không có gì để tìm). LUÔN đóng HIỂN THỊ của
+  // overlay đang mở (nếu có) mỗi khi hàm này chạy — hàm này chỉ được gọi đúng lúc chuyển tab/vào-ra
+  // chi tiết bộ phận, nếu chỉ đóng khi id === null thì chuyển từ tab đang mở ô tìm kiếm sang MỘT
+  // TAB KHÁC cũng có ô tìm kiếm sẽ bỏ qua bước đóng, khiến nút tròn kẹt ở trạng thái "đang mở" dù ô
+  // tìm kiếm thật đã bị ẩn theo tab cũ (lỗi Reviewer phát hiện 2026-07-19). Sau đó, nếu TAB MỚI
+  // trước đây từng để ô tìm kiếm mở dở (searchWasOpenByTab), TỰ MỞ LẠI (không lấy focus, tránh bật
+  // bàn phím ngoài ý muốn mỗi lần chuyển tab) — user yêu cầu 2026-07-19: "quay lại tab Dự án thì
+  // thanh tìm kiếm và nội dung tìm kiếm vẫn phải còn nguyên" (trước đây nội dung lọc vẫn còn do ô
+  // input chưa bị xóa giá trị, nhưng THANH tìm kiếm lại hiện đóng — không khớp nhau).
+  function updateSearchFabVisibility_() {
+    var id = getActiveSearchInputId_();
+    $('search-fab').classList.toggle('show', !!id);
+    if (searchOverlayOpen) closeSearchOverlay_(false);
+    if (id && searchWasOpenByTab[id]) openSearchOverlay_(true);
+  }
+
+  // skipFocus=true: mở lại TỰ ĐỘNG khi quay về 1 tab trước đó đã để mở (không cướp bàn phím).
+  // Mặc định (bấm tay vào nút tròn): luôn lấy focus để bật bàn phím ngay.
+  function openSearchOverlay_(skipFocus) {
+    var id = getActiveSearchInputId_();
+    if (!id) return;
+    searchOverlayOpen = true;
+    searchWasOpenByTab[id] = true;
+    $('search-fab').classList.add('open');
+    $(id).closest('.search-bar').classList.add('open');
+    if (!skipFocus) $(id).focus();
+  }
+
+  // clear=true: bấm lại nút tròn khi đang mở => vừa ẩn ô, vừa xóa từ khóa đang gõ và hiện lại đầy
+  // đủ danh sách, ĐỒNG THỜI quên hẳn trạng thái "đang mở" của tab này (user yêu cầu 2026-07-19).
+  // clear=false: chỉ ẩn HIỂN THỊ tạm thời (dùng khi chuyển tab/đổi màn hình) — KHÔNG đụng tới
+  // searchWasOpenByTab, để updateSearchFabVisibility_() còn tự mở lại đúng khi quay về tab đó.
+  function closeSearchOverlay_(clear) {
+    searchOverlayOpen = false;
+    $('search-fab').classList.remove('open');
+    var bars = document.querySelectorAll('.search-bar.open');
+    for (var i = 0; i < bars.length; i++) bars[i].classList.remove('open');
+    if (clear) {
+      var id = getActiveSearchInputId_();
+      if (id) searchWasOpenByTab[id] = false;
+      if (id && $(id).value) { $(id).value = ''; triggerSearchRerender_(id); }
+    }
+  }
+
+  // Tự giãn/co chiều cao textarea theo đúng nội dung — tối thiểu 1 dòng, tối đa 8 dòng (quá 8
+  // dòng thì cuộn bên trong ô thay vì giãn vô hạn) — user yêu cầu 2026-07-19: ô "Báo cáo KH" có
+  // nội dung dài hiện quá bé so với chữ, mọi ô lại mặc định cao bằng nhau bất kể nội dung.
+  function autoResizeTextarea(el) {
+    var cs = window.getComputedStyle(el);
+    var lineHeight = parseFloat(cs.lineHeight) || 19;
+    var extra = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) +
+      (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+    var minH = lineHeight * 1 + extra;
+    var maxH = lineHeight * 8 + extra;
+    el.style.height = 'auto';
+    var scrollH = el.scrollHeight;
+    el.style.height = Math.min(Math.max(scrollH, minH), maxH) + 'px';
+    el.style.overflowY = scrollH > maxH ? 'auto' : 'hidden';
+  }
+
+  function escapeHtml(s) {
+    if (s === null || s === undefined) return '';
+    return s.toString()
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function isDarkMode() {
+    var attr = document.documentElement.getAttribute('data-theme');
+    if (attr === 'dark') return true;
+    if (attr === 'light') return false;
+    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }
+
+  function hexToHsl(hex) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    var r = parseInt(hex.substr(0, 2), 16) / 255, g = parseInt(hex.substr(2, 2), 16) / 255, b = parseInt(hex.substr(4, 2), 16) / 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), h, s, l = (max + min) / 2;
+    if (max === min) { h = 0; s = 0; } else {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+      else if (max === g) h = (b - r) / d + 2;
+      else h = (r - g) / d + 4;
+      h *= 60;
+    }
+    return [h, s * 100, l * 100];
+  }
+
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    var c = (1 - Math.abs(2 * l - 1)) * s;
+    var x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    var m = l - c / 2, r, g, b;
+    if (h < 60) { r = c; g = x; b = 0; } else if (h < 120) { r = x; g = c; b = 0; }
+    else if (h < 180) { r = 0; g = c; b = x; } else if (h < 240) { r = 0; g = x; b = c; }
+    else if (h < 300) { r = x; g = 0; b = c; } else { r = c; g = 0; b = x; }
+    var toHex = function (v) { var h2 = Math.round((v + m) * 255).toString(16); return h2.length === 1 ? '0' + h2 : h2; };
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+  }
+
+  // Sheet có thể chứa màu chữ tối (vd xanh đậm, đỏ đậm) do được thiết kế cho nền trắng — nếu
+  // đang ở giao diện tối, nâng độ sáng lên để không bị "chữ tối trên nền tối" nhưng vẫn giữ
+  // đúng sắc màu (hue) gốc để người dùng vẫn nhận ra đây là màu cảnh báo/nhãn nào.
+  function adjustColorForTheme(hex) {
+    if (!hex) return null;
+    try {
+      var hsl = hexToHsl(hex);
+      if (isDarkMode() && hsl[2] < 42) hsl[2] = Math.min(Math.max(hsl[2] + 32, 60), 85);
+      if (!isDarkMode() && hsl[2] > 88) hsl[2] = Math.min(Math.max(hsl[2] - 28, 30), 55);
+      return hslToHex(hsl[0], hsl[1], hsl[2]);
+    } catch (e) { return hex; }
+  }
+
+  function runsToHtml(runs) {
+    var html = '';
+    for (var i = 0; i < runs.length; i++) {
+      var run = runs[i];
+      var color = adjustColorForTheme(run.c);
+      var style = '';
+      if (color) style += 'color:' + color + ';';
+      if (run.b) style += 'font-weight:700;';
+      var text = escapeHtml(run.t).replace(/\\n/g, '<br>');
+      html += style ? ('<span style="' + style + '">' + text + '</span>') : text;
+    }
+    return html;
+  }
+
+  function showView(id) {
+    var views = document.querySelectorAll('.view');
+    for (var i = 0; i < views.length; i++) views[i].classList.remove('active');
+    $(id).classList.add('active');
+    var isLogin = (id === 'view-login');
+    // topbar (tiêu đề "Xem THBC") chỉ hiện khi vào chi tiết 1 bộ phận (openDepartmentDetail tự
+    // bật) — ẩn mặc định để tabbar dính sát mép trên, tăng không gian hiển thị nội dung.
+    $('topbar').style.display = 'none';
+    $('tabbar').style.display = isLogin ? 'none' : 'flex';
+  }
+
+  function setLoginBusy(busy) {
+    $('login-btn').disabled = busy;
+    $('login-btn').textContent = busy ? 'Đang kiểm tra...' : 'Đăng nhập';
+  }
+
+  $('login-btn').addEventListener('click', submitPassword);
+  $('password-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPassword(); });
+  $('logout-link').addEventListener('click', logout);
+  $('back-btn').addEventListener('click', backFromDeptDetail);
+  $('search-input-projects').addEventListener('input', renderProjectsFiltered);
+  $('search-input-dept').addEventListener('input', renderDeptDetailFiltered);
+  $('tab-btn-projects').addEventListener('click', function () { switchTab('projects'); });
+  $('tab-btn-departments').addEventListener('click', function () { switchTab('departments'); });
+  $('tab-btn-submit').addEventListener('click', function () { switchTab('submit'); });
+  $('tab-btn-priority').addEventListener('click', function () { switchTab('priority'); });
+  $('tab-btn-tkbc').addEventListener('click', function () { switchTab('tkbc'); });
+  $('tab-btn-danhsachda').addEventListener('click', function () { switchTab('danhsachda'); });
+  $('search-input-submit').addEventListener('input', renderSubmitFiltered);
+  $('submit-send-btn').addEventListener('click', doSubmitReports);
+  $('search-input-priority').addEventListener('input', renderPriorityFiltered);
+  $('priority-save-btn').addEventListener('click', doSavePriority);
+  $('search-input-danhsachda').addEventListener('input', renderDanhSachDaFiltered);
+  $('search-fab').addEventListener('click', function () {
+    if (searchOverlayOpen) closeSearchOverlay_(true); else openSearchOverlay_();
+  });
+
+  function submitPassword() {
+    var val = $('password-input').value.trim();
+    $('login-error').textContent = '';
+    if (!val) return;
+    verifyAndProceed(val, false);
+  }
+
+  function verifyAndProceed(pass, isAuto) {
+    if (!isAuto) setLoginBusy(true);
+    callServer('webviewLogin', [pass])
+      .then(function (res) {
+        if (!isAuto) setLoginBusy(false);
+        if (!res.ok) {
+          localStorage.removeItem(STORAGE_KEY);
+          currentPassword = '';
+          // Luôn hiện lý do THẬT nếu server trả kèm (ví dụ đang bảo trì hệ thống — res.error), kể
+          // cả lúc tự đăng nhập ngầm (isAuto) lúc mới mở app, không chỉ khi người dùng tự bấm
+          // "Đăng nhập". Không có res.error (sai mật khẩu thường) thì giữ hành vi cũ: im lặng nếu
+          // isAuto (tự kiểm tra ngầm, không cần dọa người dùng), chỉ hiện "Sai mật khẩu." khi họ
+          // chủ động bấm nút.
+          $('login-error').textContent = res.error || (isAuto ? '' : 'Sai mật khẩu.');
+          showView('view-login');
+          return;
+        }
+        currentPassword = pass;
+        currentRole = res.role;
+        currentDeptCode = res.deptCode;
+        currentDeptName = res.deptName;
+        currentCanViewTKBC = !!res.canViewTKBC;
+        currentCanViewProjectList = !!res.canViewProjectList;
+        scrollHideEnabled = !!res.smartHideHeader;
+        localStorage.setItem(STORAGE_KEY, pass);
+        enterMain();
+      })
+      .catch(function (err) {
+        if (!isAuto) setLoginBusy(false);
+        $('login-error').textContent = 'Lỗi kết nối: ' + err.message;
+      });
+  }
+
+  // Tự ẩn tabbar + ô tìm kiếm (nếu tab hiện tại có) khi cuộn XUỐNG một đoạn đủ dài (~1/3 chiều
+  // cao màn hình cộng dồn — không cần cuộn 1 mạch liên tục, chỉ cần KHÔNG đổi hướng giữa chừng),
+  // tự hiện lại NGAY khi cuộn LÊN dù chỉ 1 chút — user yêu cầu 2026-07-19, bật/tắt được qua
+  // CONFIG_SETTINGS!SmartHideHeader. Dùng max-height thay vì transform vì tabbar là
+  // position:sticky (xem CSS .tabbar) — translateY trên phần tử sticky để lại khoảng trống, không
+  // nhường thật chỗ cho nội dung bên dưới trồi lên.
+  // Ô tìm kiếm giờ NỔI CỐ ĐỊNH (position:fixed, xem CSS .search-bar/.search-fab) nên không còn
+  // ăn theo trạng thái ẩn/hiện của tabbar nữa — chỉ còn tabbar tự ẩn khi cuộn xuống.
+  function setTabbarScrollHidden_(hidden) {
+    if (tabbarScrollHidden === hidden) return;
+    tabbarScrollHidden = hidden;
+    $('tabbar').classList.toggle('scroll-hidden', hidden);
+  }
+
+  window.addEventListener('scroll', function () {
+    if (!scrollHideEnabled || scrollTicking) return;
+    scrollTicking = true;
+    window.requestAnimationFrame(function () {
+      scrollTicking = false;
+      var y = window.scrollY || document.documentElement.scrollTop || 0;
+      var diff = y - scrollLastY;
+      scrollLastY = y;
+      if (diff > 0) {
+        scrollDownRun += diff;
+        // Ngưỡng vuốt lên 1/4 chiều cao màn hình (trước là 1/3) — dễ ẩn hơn, đỡ phải vuốt dài mới
+        // thấy tác dụng (user yêu cầu 2026-07-19).
+        if (!tabbarScrollHidden && scrollDownRun > window.innerHeight / 4) setTabbarScrollHidden_(true);
+      } else if (diff < 0) {
+        scrollDownRun = 0;
+        if (tabbarScrollHidden) setTabbarScrollHidden_(false);
+      }
+    });
+  }, { passive: true });
+
+  function enterMain() {
+    // Áp dụng giao diện đúng vai trò MỖI LẦN vào app (kể cả lần vào lại sau khi đã mainEntered)
+    // vì role có thể khác giữa các lần đăng nhập trên cùng thiết bị dùng chung.
+    $('tab-btn-submit').classList.toggle('hidden-role', currentRole !== 'manager');
+    $('tab-btn-priority').classList.toggle('hidden-role', currentRole !== 'btgd');
+    $('tab-btn-tkbc').classList.toggle('hidden-role', !currentCanViewTKBC);
+    $('tab-btn-danhsachda').classList.toggle('hidden-role', !currentCanViewProjectList);
+    if (mainEntered) { showView('view-main'); return; }
+    mainEntered = true;
+    showView('view-main');
+    // Nạp cả 3 nguồn dữ liệu ngay khi vào app — Tab BỘ PHẬN sẽ lọc từ đây, không đọc lại sheet.
+    loadOverview();
+    loadDeptList();
+    loadDeptMap();
+    // Kích hoạt tab mặc định TRƯỚC (Dự án luôn được ưu tiên nạp trước tiên) — PHẢI gọi
+    // switchTab('projects') trước khi nạp song song các tab khác bên dưới, vì switchTab() tự tăng
+    // các biến chống-race (submitRequestId/priorityRequestId/tkbcRequestId/projectListRequestId)
+    // mỗi lần gọi — nếu nạp các tab khác TRƯỚC rồi mới switchTab(), lệnh switchTab() sẽ VÔ TÌNH
+    // hủy ngay các yêu cầu vừa gửi đi (coi như "đã chuyển tab khác, kết quả cũ").
+    switchTab('projects');
+    // Nạp dữ liệu của MỌI tab người dùng có quyền xem ngay khi vào app — hạn chế phải chờ khi
+    // chuyển tab sau này (user yêu cầu 2026-07-19). Thứ tự ưu tiên: Dự án (đã nạp ở trên) -> Gửi
+    // báo cáo/Ưu tiên -> Thống kê BC -> Danh sách DA. GIÃN CÁCH bằng setTimeout thay vì gọi dồn
+    // hết cùng lúc — bắn 1 loạt tới 7 google.script.run đồng thời (3 nguồn ở trên + tab mặc định
+    // + các tab này) khiến tab ưu tiên nhất (Dự án) phải tranh băng thông/lượt xử lý với các tab
+    // còn lại, trên mạng yếu cảm giác như "nạp không xong" (user phản ánh 2026-07-19). Giãn 300ms
+    // mỗi bước cho Dự án có thời gian đi trước.
+    if (currentRole === 'manager') setTimeout(showSubmitTab, 300);
+    if (currentRole === 'btgd') setTimeout(showPriorityTab, 300);
+    if (currentCanViewTKBC) setTimeout(showTkbcTab, 600);
+    if (currentCanViewProjectList) setTimeout(showDanhSachDaTab, 900);
+  }
+
+  function switchTab(tab) {
+    openRequestId++; // Vô hiệu hóa mọi callback openDepartmentDetail đang chờ dữ liệu — tránh nó
+                      // ghi đè topbar-sub/nội dung của tab vừa chuyển sang (đã xảy ra thật khi
+                      // rời màn hình chi tiết bộ phận trước khi dữ liệu kịp sẵn sàng).
+    submitRequestId++; // Vô hiệu hóa callback đang chờ dữ liệu tab Gửi báo cáo (cùng lý do openRequestId ở trên)
+    priorityRequestId++; // Cùng cơ chế chống race cho tab Ưu tiên
+    tkbcRequestId++; // Cùng cơ chế chống race cho tab Thống kê BC
+    projectListRequestId++; // Cùng cơ chế chống race cho tab Danh sách DA
+    // LUÔN thoát khỏi view chi tiết bộ phận (nếu đang mở) khi chuyển tab — dù chuyển sang tab nào,
+    // KỂ CẢ không phải "Bộ phận".
+    backFromDeptDetail();
+    // Đưa trang về đầu + hiện lại tabbar/ô tìm kiếm mỗi khi đổi tab — vị trí cuộn của tab CŨ không
+    // còn ý nghĩa gì với tab MỚI (nội dung khác hẳn), để nguyên có thể khiến tab mới hiện dở dang
+    // (cuộn sẵn xuống giữa danh sách chưa kịp thấy) hoặc tabbar bị kẹt ẩn từ lần cuộn ở tab trước.
+    window.scrollTo(0, 0);
+    scrollLastY = 0; scrollDownRun = 0;
+    setTabbarScrollHidden_(false);
+    currentTab = tab;
+    $('tab-btn-projects').classList.toggle('active', tab === 'projects');
+    $('tab-btn-departments').classList.toggle('active', tab === 'departments');
+    $('tab-btn-submit').classList.toggle('active', tab === 'submit');
+    $('tab-btn-priority').classList.toggle('active', tab === 'priority');
+    $('tab-btn-tkbc').classList.toggle('active', tab === 'tkbc');
+    $('tab-btn-danhsachda').classList.toggle('active', tab === 'danhsachda');
+    $('tab-projects').classList.toggle('active', tab === 'projects');
+    $('tab-departments').classList.toggle('active', tab === 'departments');
+    $('tab-submit').classList.toggle('active', tab === 'submit');
+    $('tab-priority').classList.toggle('active', tab === 'priority');
+    $('tab-tkbc').classList.toggle('active', tab === 'tkbc');
+    $('tab-danhsachda').classList.toggle('active', tab === 'danhsachda');
+    $('back-btn').classList.add('hidden');
+    $('topbar').style.display = 'none'; // Luôn ẩn header khi ở màn hình danh sách chính (không phải chi tiết 1 bộ phận)
+    $('tabbar').style.display = 'flex';
+    if (tab === 'projects') showProjectsTab();
+    if (tab === 'departments') showDepartmentsTab();
+    if (tab === 'submit' && currentRole === 'manager') showSubmitTab();
+    if (tab === 'priority' && currentRole === 'btgd') showPriorityTab();
+    if (tab === 'tkbc' && currentCanViewTKBC) showTkbcTab();
+    if (tab === 'danhsachda' && currentCanViewProjectList) showDanhSachDaTab();
+    updateSearchFabVisibility_();
+  }
+
+  // ---------------- TAB DỰ ÁN ----------------
+
+  function showProjectsTab() {
+    ensureOverview(function () {
+      if (!overviewResp.ok) {
+        $('projects-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(overviewResp.error || 'Lỗi tải dữ liệu.') + '</div>';
+        return;
+      }
+      renderProjectsFiltered();
+    });
+  }
+
+  function renderProjectsFiltered() {
+    if (!overviewResp || !overviewResp.ok) return;
+    var q = $('search-input-projects').value.trim().toLowerCase();
+    var html = '';
+    var totalShown = 0;
+    for (var gi = 0; gi < overviewResp.groups.length; gi++) {
+      var g = overviewResp.groups[gi];
+      var projects = [];
+      for (var pi = 0; pi < g.projects.length; pi++) {
+        var p = g.projects[pi];
+        if (!q || (p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1)) projects.push(p);
+      }
+      if (projects.length === 0) continue;
+      totalShown += projects.length;
+      var banGroupId = 'ban-group-' + gi;
+      // Khi ĐANG tìm kiếm (q khác rỗng), LUÔN mở rộng — dự án khớp tìm kiếm phải hiện ra kể cả
+      // đang ở trong 1 Ban đã bị thu gọn trước đó, không thì tìm không thấy dù dự án có tồn tại
+      // (lỗi user phản ánh 2026-07-19). Chỉ áp dụng collapsedBanGroups khi KHÔNG tìm kiếm.
+      var isCollapsed = !q && collapsedBanGroups[g.ban];
+      html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
+      if (g.ban) {
+        html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
+          '<span class="ban-title' + (g.isPriority ? ' priority' : '') + '">' + escapeHtml(g.ban) + ' (' + projects.length + ')</span>' +
+          '<svg class="ban-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"></path></svg>' +
+          '</div>';
+      }
+      for (var k = 0; k < projects.length; k++) {
+        var proj = projects[k];
+        var rowId = 'proj-' + gi + '-' + k;
+        // Giữ nguyên báo cáo đang xổ (nếu có, theo dõi ở openProjectIds theo MÃ dự án) khi render
+        // lại — ví dụ đang gõ tìm kiếm hoặc vừa tắt tìm kiếm sau khi đã mở báo cáo 1 dự án.
+        var isOpen = !!openProjectIds[proj.id];
+        html += '<div class="project-row' + (g.isPriority ? ' priority' : '') + (isOpen ? ' open' : '') + '" id="' + rowId + '" data-project-id="' + escapeHtml(proj.id) + '">' +
+          '<div class="project-head">' +
+          '<div class="project-info"><div class="project-name">' + escapeHtml(proj.name) + '</div>' +
+          '<div class="project-sub">' + escapeHtml(proj.id) + '</div></div>' +
+          '<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"></path></svg>' +
+          '</div><div class="project-body">';
+        for (var h = 0; h < overviewResp.headers.length; h++) {
+          var hName = overviewResp.headers[h];
+          var runs = proj.fields[hName];
+          if (!runs || runs.length === 0) continue;
+          html += '<div class="block-report"><div class="block-name">' + escapeHtml(hName) + '</div>' +
+            '<div class="block-text">' + runsToHtml(runs) + '</div></div>';
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+    $('projects-content').innerHTML = totalShown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    // Bấm BẤT KỲ đâu trong thẻ dự án (kể cả phần báo cáo đã xổ ra, không chỉ riêng tên dự án) đều
+    // đóng/mở được — user yêu cầu 2026-07-19: trước đây chỉ bấm đúng phần tiêu đề (.project-head)
+    // mới thu gọn lại được, bất tiện khi báo cáo dài.
+    var rows = document.querySelectorAll('#tab-projects .project-row');
+    for (var m = 0; m < rows.length; m++) rows[m].addEventListener('click', function () { toggleProject(this.id); });
+    // Đặt lại chiều cao thật cho phần báo cáo của các thẻ đang đánh dấu "open" ở trên (chỉ gắn class
+    // qua chuỗi HTML thì CSS .project-body{max-height:0} vẫn ẩn nội dung — phải đo scrollHeight sau
+    // khi đã chèn vào DOM rồi gán lại, giống hệt cách toggleProject() làm khi người dùng tự bấm mở).
+    var openRows = document.querySelectorAll('#tab-projects .project-row.open');
+    for (var o = 0; o < openRows.length; o++) {
+      var ob = openRows[o].querySelector('.project-body');
+      ob.style.maxHeight = ob.scrollHeight + 'px';
+    }
+    // Bấm tiêu đề Ban để thu gọn/mở rộng CẢ NHÓM — mặc định luôn mở rộng khi vào, chỉ ẩn khi
+    // người dùng chủ động bấm.
+    var banTitles = document.querySelectorAll('#tab-projects .ban-title-row');
+    for (var b = 0; b < banTitles.length; b++) {
+      banTitles[b].addEventListener('click', function () {
+        var banName = this.getAttribute('data-ban-name');
+        // Lưu trạng thái vào collapsedBanGroups (biến NGOÀI hàm render) — không chỉ toggle class
+        // trên DOM — để không bị mất khi gõ tìm kiếm làm render lại toàn bộ danh sách (lỗi
+        // Reviewer phát hiện 2026-07-19: thu gọn 1 nhóm rồi gõ tìm kiếm thì nhóm đó tự mở lại).
+        collapsedBanGroups[banName] = !collapsedBanGroups[banName];
+        $(this.getAttribute('data-ban-group')).classList.toggle('collapsed');
+      });
+    }
+  }
+
+  function toggleProject(rowId) {
+    var el = $(rowId);
+    var projId = el.getAttribute('data-project-id');
+    var body = el.querySelector('.project-body');
+    var head = el.querySelector('.project-head');
+    var isOpen = el.classList.contains('open');
+    if (isOpen) {
+      // Tên dự án (phần đầu thẻ) đang bị che 1 phần phía trên (đã cuộn qua) hay vẫn đọc được đầy
+      // đủ? Quyết định TRƯỚC khi thu gọn, vì sau khi thu gọn layout đổi, không còn đo đúng nữa.
+      var headTop = head.getBoundingClientRect().top;
+      var headPartlyHidden = headTop < 0;
+      body.style.maxHeight = null;
+      el.classList.remove('open');
+      delete openProjectIds[projId];
+      if (headPartlyHidden) {
+        // Đưa tiêu đề dự án vừa thu gọn lên sát đầu màn hình — dự án TIẾP THEO hiện ra NGAY BÊN
+        // DƯỚI ở vị trí dễ bấm tiếp, thay vì toàn bộ nội dung bị "co lên" đột ngột theo layout mới
+        // khiến phải vuốt ngược lại tìm (user phản ánh 2026-07-19). Không cần khi tên dự án vẫn
+        // đang đọc được đầy đủ trên màn hình — để co lên bình thường theo layout, không cần chỉnh.
+        head.scrollIntoView({ block: 'start', behavior: 'auto' });
+      }
+    } else {
+      el.classList.add('open');
+      body.style.maxHeight = body.scrollHeight + 'px';
+      openProjectIds[projId] = true;
+    }
+  }
+
+  // ---------------- TAB BỘ PHẬN ----------------
+
+  function showDepartmentsTab() {
+    ensureDeptList(function () {
+      if (!deptListResp.ok) {
+        $('dept-grid-area').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(deptListResp.error || 'Lỗi tải danh sách bộ phận.') + '</div>';
+        return;
+      }
+      renderDepartmentGrid();
+    });
+  }
+
+  function findDeptConfig(code) {
+    if (!deptListResp || !deptListResp.ok) return null;
+    for (var i = 0; i < deptListResp.list.length; i++) if (deptListResp.list[i].code === code) return deptListResp.list[i];
+    return null;
+  }
+
+  function avatarColorFor(label) {
+    var hash = 0;
+    for (var i = 0; i < label.length; i++) hash = (hash * 31 + label.charCodeAt(i)) >>> 0;
+    return 'hsl(' + (hash % 360) + ', 46%, 38%)';
+  }
+
+  function initialsFor(label) {
+    var stripped = label.replace(/^(Phòng|Bộ phận|XN)\\s*/i, '').trim();
+    var base = stripped.length > 0 ? stripped : label;
+    var words = base.split(/\\s+/);
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return base.slice(0, 2).toUpperCase();
+  }
+
+  function renderDepartmentGrid() {
+    var html = '<div class="home-intro"><p>Chọn bộ phận để xem báo cáo riêng của bộ phận đó.</p></div><div class="dept-grid">';
+    for (var i = 0; i < deptListResp.list.length; i++) {
+      var d = deptListResp.list[i];
+      html += '<button class="dept-card" data-code="' + escapeHtml(d.code) + '">' +
+        '<div class="dept-avatar" style="background:' + avatarColorFor(d.name) + '">' + escapeHtml(initialsFor(d.name)) + '</div>' +
+        '<div class="dept-name">' + escapeHtml(d.name) + '</div></button>';
+    }
+    html += '</div>';
+    $('dept-grid-area').innerHTML = html;
+    var cards = document.querySelectorAll('.dept-card');
+    for (var j = 0; j < cards.length; j++) {
+      cards[j].addEventListener('click', function () { openDepartmentDetail(this.getAttribute('data-code')); });
+    }
+  }
+
+  // Lọc HOÀN TOÀN Ở CLIENT từ overviewResp (+ deptMapResp nếu bộ phận cần lọc theo "Bộ phận
+  // phụ trách") — không gọi lại server, nên chuyển qua lại giữa các bộ phận gần như tức thời
+  // sau lần tải đầu tiên (khác bản trước: mỗi lần chạm bộ phận đọc lại toàn bộ sheet THBC).
+  function openDepartmentDetail(code) {
+    var myRequestId = ++openRequestId;
+    var dept = findDeptConfig(code);
+    $('dept-grid-area').style.display = 'none';
+    $('dept-detail-area').style.display = 'block';
+    $('dept-detail-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    $('search-input-dept').value = '';
+    $('topbar-title').textContent = dept ? dept.name : '';
+    $('topbar-sub').textContent = 'Đang tải...';
+    $('back-btn').classList.remove('hidden');
+    $('topbar').style.display = 'flex'; // Chỉ màn hình chi tiết bộ phận mới cần header (tên bộ phận + nút back)
+    $('tabbar').style.display = 'none';
+    updateSearchFabVisibility_(); // Vào chi tiết bộ phận mới có ô tìm kiếm riêng (search-input-dept) — hiện nút tròn
+    // Đẩy 1 mốc lịch sử trình duyệt THẬT — bản PWA này chạy ở trang top-level (không còn bên trong
+    // iframe Apps Script như bản cũ), nên history.pushState/popstate hoạt động đúng: vuốt lùi/bấm
+    // back CỨNG của điện thoại giờ đóng được về lưới bộ phận thay vì thoát thẳng app (user yêu cầu
+    // 2026-07-19/20: "back ra vẫn lưu lại dữ liệu, không thoát app").
+    history.pushState({ view: 'dept-detail' }, '');
+    deptDetailHistoryPushed = true;
+
+    if (!dept) { showDeptDetailError('Bộ phận không hợp lệ.'); return; }
+
+    ensureOverview(function () {
+      if (myRequestId !== openRequestId) return;
+      if (!overviewResp.ok) { showDeptDetailError(overviewResp.error); return; }
+      if (dept.plCode) {
+        ensureDeptMap(function () {
+          if (myRequestId !== openRequestId) return;
+          if (!deptMapResp.ok) { showDeptDetailError(deptMapResp.error); return; }
+          finishOpenDepartment(dept, deptMapResp.map);
+        });
+      } else {
+        finishOpenDepartment(dept, null);
+      }
+    });
+  }
+
+  function showDeptDetailError(msg) {
+    $('dept-detail-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(msg || 'Lỗi tải dữ liệu.') + '</div>';
+    $('topbar-sub').textContent = '';
+  }
+
+  function finishOpenDepartment(dept, deptMap) {
+    var upperKeyword = dept.keyword.toUpperCase();
+    var matchHeader = null;
+    for (var i = 0; i < overviewResp.headers.length; i++) {
+      if (overviewResp.headers[i].toUpperCase().indexOf(upperKeyword) !== -1) { matchHeader = overviewResp.headers[i]; break; }
+    }
+    if (!matchHeader) { showDeptDetailError("Không tìm thấy cột nội dung khớp '" + dept.keyword + "' trên THBC."); return; }
+
+    // Giữ NGUYÊN cấu trúc nhóm theo Ban (kể cả nhóm "CÁC DỰ ÁN ƯU TIÊN") + thứ tự y hệt Tab Dự
+    // án — trước đây gộp phẳng thành 1 mảng, mất hết tiêu đề nhóm (user yêu cầu 2026-07-19: hiện
+    // lại tiêu đề Ban giống Tab Dự án).
+    var plCodeUpper = dept.plCode ? dept.plCode.toUpperCase() : null;
+    var groups = [];
+    var totalCount = 0;
+    for (var gi = 0; gi < overviewResp.groups.length; gi++) {
+      var g = overviewResp.groups[gi];
+      var groupProjects = [];
+      for (var pi = 0; pi < g.projects.length; pi++) {
+        var p = g.projects[pi];
+        if (plCodeUpper) {
+          var codes = deptMap[p.id] || [];
+          if (codes.indexOf(plCodeUpper) === -1) continue; // 1 dự án có thể có nhiều bộ phận phụ trách, chỉ cần khớp 1
+        }
+        var runs = p.fields[matchHeader];
+        if (!runs || runs.length === 0) continue;
+        groupProjects.push({ id: p.id, name: p.name, runs: runs });
+      }
+      if (groupProjects.length > 0) {
+        groups.push({ ban: g.ban, isPriority: g.isPriority, projects: groupProjects });
+        totalCount += groupProjects.length;
+      }
+    }
+
+    deptDetailData = { columnName: matchHeader, groups: groups };
+    $('topbar-sub').textContent = totalCount + ' dự án';
+    renderDeptDetailFiltered();
+  }
+
+  function renderDeptDetailFiltered() {
+    if (!deptDetailData) return;
+    var q = $('search-input-dept').value.trim().toLowerCase();
+    var html = '';
+    var totalShown = 0;
+    for (var gi = 0; gi < deptDetailData.groups.length; gi++) {
+      var g = deptDetailData.groups[gi];
+      var matched = [];
+      for (var pi = 0; pi < g.projects.length; pi++) {
+        var p = g.projects[pi];
+        if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
+        matched.push(p);
+      }
+      if (matched.length === 0) continue;
+      totalShown += matched.length;
+      var banGroupId = 'dept-ban-group-' + gi;
+      // Dùng CHUNG collapsedBanGroups với Tab Dự án — thu gọn 1 Ban ở tab nào cũng đồng bộ sang
+      // tab kia, và LUÔN mở rộng khi đang tìm kiếm (giống hệt cơ chế Tab Dự án).
+      var isCollapsed = !q && collapsedBanGroups[g.ban];
+      html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
+      if (g.ban) {
+        html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
+          '<span class="ban-title' + (g.isPriority ? ' priority' : '') + '">' + escapeHtml(g.ban) + ' (' + matched.length + ')</span>' +
+          '<svg class="ban-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"></path></svg>' +
+          '</div>';
+      }
+      for (var k = 0; k < matched.length; k++) {
+        var p = matched[k];
+        html += '<div class="flat-card' + (g.isPriority ? ' priority' : '') + '">' +
+          '<div class="flat-card-head"><div class="project-name">' + escapeHtml(p.name) + '</div></div>' +
+          // Chữ "Ưu tiên" nằm CÙNG HÀNG với mã DA (không phải cùng hàng tên dự án như bản trước) —
+          // user yêu cầu 2026-07-19.
+          '<div class="project-sub" style="margin-bottom:8px;">' + escapeHtml(p.id) +
+          (g.isPriority ? ' <span class="priority-badge">Ưu tiên</span>' : '') + '</div>' +
+          '<div class="block-text">' + runsToHtml(p.runs) + '</div></div>';
+      }
+      html += '</div>';
+    }
+    $('dept-detail-content').innerHTML = totalShown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    var banTitles = document.querySelectorAll('#tab-departments .ban-title-row');
+    for (var b = 0; b < banTitles.length; b++) {
+      banTitles[b].addEventListener('click', function () {
+        var banName = this.getAttribute('data-ban-name');
+        collapsedBanGroups[banName] = !collapsedBanGroups[banName];
+        $(this.getAttribute('data-ban-group')).classList.toggle('collapsed');
+      });
+    }
+  }
+
+  // Bản WEBVIEW_THBC gốc (chạy trong iframe Apps Script) từng bỏ hẳn History API vì
+  // history.back() gọi từ BÊN TRONG iframe khác domain không tác động được tới lịch sử của trang
+  // bọc ngoài. Bản PWA NÀY chạy như 1 trang top-level THẬT (host trên GitHub Pages, không còn
+  // iframe bọc ngoài) nên History API hoạt động đúng — dùng lại được, đáp ứng yêu cầu "back ra vẫn
+  // lưu dữ liệu, không thoát app" (user 2026-07-19/20). Bấm nút "←" TRÊN MÀN HÌNH gọi history.back()
+  // (tiêu thụ đúng mốc lịch sử đã pushState lúc mở chi tiết) NHƯNG cũng gọi resetDeptDetailView_()
+  // ĐỒNG BỘ ngay lập tức — không đợi popstate bắn về mới cập nhật giao diện (một số trình duyệt độ
+  // trễ đáng kể), popstate ở dưới chỉ là lưới an toàn cho trường hợp vuốt lùi thật của hệ điều hành
+  // (không đi qua hàm này).
+  var deptDetailHistoryPushed = false;
+
+  window.addEventListener('popstate', function () {
+    if (deptDetailHistoryPushed && $('dept-detail-area').style.display !== 'none') {
+      deptDetailHistoryPushed = false;
+      resetDeptDetailView_();
+    }
+  });
+
+  function resetDeptDetailView_() {
+    $('dept-detail-area').style.display = 'none';
+    $('dept-grid-area').style.display = 'block';
+    $('topbar-title').textContent = '';
+    $('topbar-sub').textContent = '';
+    $('back-btn').classList.add('hidden');
+    $('topbar').style.display = 'none';
+    if (currentTab === 'departments') $('tabbar').style.display = 'flex';
+    updateSearchFabVisibility_(); // Thoát chi tiết bộ phận -> về lưới chọn bộ phận, không còn ô tìm kiếm nào -> ẩn nút tròn
+  }
+
+  function backFromDeptDetail() {
+    openRequestId++; // Vô hiệu hóa callback openDepartmentDetail đang chờ dữ liệu (bấm back trước khi lọc xong)
+    if (deptDetailHistoryPushed) {
+      deptDetailHistoryPushed = false;
+      history.back(); // Tiêu thụ mốc lịch sử đã đẩy lúc mở chi tiết — tránh còn sót lại khiến lần bấm back TIẾP THEO (ở màn hình khác) bị "kẹt" 1 nhịp vô nghĩa
+    }
+    resetDeptDetailView_();
+  }
+
+  // ---------------- TAB GỬI BÁO CÁO (role "manager") ----------------
+  // BẢN 5: mật khẩu đăng nhập chung (currentPassword) CHÍNH LÀ mật khẩu bộ phận
+  // (webviewCheckSubmitPassword_ ở Code.js khớp cùng 1 giá trị) — không còn màn hình chọn bộ
+  // phận/nhập mật khẩu lần 2. Luồng: vào tab -> tải danh sách dự án + giá trị NHAPBC hiện tại
+  // (webviewGetMyProjects) -> sửa NHIỀU dự án (giữ tạm ở pendingEdits, CHƯA ghi vào sheet) ->
+  // bấm "Gửi báo cáo" 1 lần -> webviewSubmitReports ghi tất cả thay đổi rồi gọi lại API
+  // sendReport của Control (y hệt nút trên Sheet).
+
+  function showSubmitTab() {
+    $('submit-dept-intro').textContent = 'Bộ phận: ' + (currentDeptName || currentDeptCode || '');
+    // Đã tải danh sách dự án của phiên hiện tại rồi -> hiện lại NGAY từ bộ nhớ, KHÔNG tải lại.
+    // Trước đây luôn tải lại mỗi lần vào tab này, xóa mất pendingEdits (các trường đang sửa dở
+    // nhưng chưa bấm Gửi) chỉ vì người dùng lỡ chạm sang tab khác rồi quay lại — lỗi Reviewer
+    // phát hiện 2026-07-19.
+    if (submitProjectsResp && submitProjectsResp.ok) {
+      renderSubmitFiltered();
+      updateSubmitBar();
+      return;
+    }
+    loadMyProjects();
+  }
+
+  function loadMyProjects() {
+    var myRequestId = ++submitRequestId;
+    $('submit-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    $('search-input-submit').value = '';
+    pendingEdits = {};
+    updateSubmitBar();
+    callServer('webviewGetMyProjects', [currentDeptCode, currentPassword])
+      .then(function (res) {
+        if (myRequestId !== submitRequestId) return;
+        if (!res.ok) {
+          $('submit-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(res.error || 'Lỗi tải dữ liệu.') + '</div>';
+          return;
+        }
+        submitProjectsResp = res;
+        renderSubmitFiltered();
+      })
+      .catch(function (err) {
+        if (myRequestId !== submitRequestId) return;
+        $('submit-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderSubmitFiltered() {
+    if (!submitProjectsResp || !submitProjectsResp.ok) return;
+    var q = $('search-input-submit').value.trim().toLowerCase();
+    var html = '';
+    var shown = 0;
+    for (var i = 0; i < submitProjectsResp.projects.length; i++) {
+      var p = submitProjectsResp.projects[i];
+      if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
+      shown++;
+      var isDirty = !!pendingEdits[p.id];
+      html += '<div class="edit-card' + (isDirty ? ' dirty' : '') + '" data-project="' + escapeHtml(p.id) + '">' +
+        '<div class="edit-card-head"><div class="project-name">' + escapeHtml(p.name) + '</div>' +
+        (isDirty ? '<span class="dirty-badge">Đã sửa</span>' : '') + '</div>' +
+        '<div class="project-sub" style="margin-bottom:6px;">' + escapeHtml(p.id) + '</div>';
+      for (var f = 0; f < submitProjectsResp.fields.length; f++) {
+        var field = submitProjectsResp.fields[f];
+        var currentVal = (pendingEdits[p.id] && pendingEdits[p.id][field] !== undefined) ? pendingEdits[p.id][field] : (p.values[field] || '');
+        // Kiểu input lấy ĐỘNG từ Data Validation thật trên cột NHAPBC tương ứng (Code.js
+        // detectFieldType_) — KHÔNG đoán cứng theo tên trường, vì mỗi bộ phận/cột có thể khác
+        // nhau (user yêu cầu 2026-07-19: "dữ liệu nhập vào các ô (list, text, boolean...) cũng
+        // cần phù hợp").
+        var ft = (submitProjectsResp.fieldTypes && submitProjectsResp.fieldTypes[field]) || { type: 'text' };
+        if (ft.type === 'list' && ft.values && ft.values.length > 0) {
+          // Field kiểu list (ví dụ "Ưu tiên" của KH) ít khi đổi, hiện GỌN cùng hàng với nhãn thay
+          // vì chiếm nguyên 1 dòng riêng như ô nhập chữ (user yêu cầu 2026-07-19: "khá chiếm chỗ").
+          html += '<div class="edit-field inline-list"><label>' + escapeHtml(field) + '</label><div class="priority-chips compact">';
+          for (var vi = 0; vi < ft.values.length; vi++) {
+            var optVal = ft.values[vi];
+            html += '<button type="button" class="priority-chip' + (currentVal === optVal ? ' active' : '') + '" data-project="' + escapeHtml(p.id) + '" data-field="' + escapeHtml(field) + '" data-value="' + escapeHtml(optVal) + '">' + escapeHtml(optVal) + '</button>';
+          }
+          html += '<button type="button" class="priority-chip clear' + (!currentVal ? ' active' : '') + '" data-project="' + escapeHtml(p.id) + '" data-field="' + escapeHtml(field) + '" data-value="">Bỏ</button>';
+          html += '</div></div>';
+        } else if (ft.type === 'boolean') {
+          var isChecked = String(currentVal).toLowerCase() === 'true';
+          html += '<div class="edit-field bool-field"><label class="bool-label">' +
+            '<input type="checkbox" class="bool-input" data-project="' + escapeHtml(p.id) + '" data-field="' + escapeHtml(field) + '"' + (isChecked ? ' checked' : '') + '>' +
+            '<span>' + escapeHtml(field) + '</span></label></div>';
+        } else {
+          html += '<div class="edit-field"><label>' + escapeHtml(field) + '</label>' +
+            '<textarea class="edit-input" data-project="' + escapeHtml(p.id) + '" data-field="' + escapeHtml(field) + '">' + escapeHtml(currentVal) + '</textarea></div>';
+        }
+      }
+      html += '</div>';
+    }
+    $('submit-content').innerHTML = shown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    var inputs = document.querySelectorAll('#submit-content textarea.edit-input');
+    for (var k = 0; k < inputs.length; k++) {
+      inputs[k].addEventListener('input', onEditFieldChange);
+      autoResizeTextarea(inputs[k]); // Kích thước ban đầu khớp nội dung đã có sẵn, không chờ gõ phím
+    }
+    var chips = document.querySelectorAll('#submit-content .priority-chip');
+    for (var c = 0; c < chips.length; c++) chips[c].addEventListener('click', onEditFieldChange);
+    var bools = document.querySelectorAll('#submit-content .bool-input');
+    for (var b = 0; b < bools.length; b++) bools[b].addEventListener('change', onEditFieldChange);
+    // Giữ nguyên trạng thái khóa (nếu đang có 1 lượt gửi chạy dở) khi render lại danh sách — ví
+    // dụ người dùng gõ tìm kiếm trong lúc đang chờ server phản hồi.
+    if (submitInFlight) setSubmitFieldsDisabled_(true);
+  }
+
+  function onEditFieldChange(e) {
+    var el = e.target;
+    if (el.tagName === 'TEXTAREA') autoResizeTextarea(el);
+    var projectId = el.getAttribute('data-project');
+    var field = el.getAttribute('data-field');
+    // Checkbox (field "boolean") gửi giá trị boolean THẬT (không phải chuỗi "true"/"false") để
+    // khi ghi lên NHAPBC (webviewSubmitReports -> setValue) ô vẫn là checkbox tick được, không
+    // biến thành chữ "true" trên Sheet.
+    var value = (el.type === 'checkbox') ? el.checked : ((el.tagName === 'BUTTON') ? el.getAttribute('data-value') : el.value);
+    var proj = null;
+    for (var i = 0; i < submitProjectsResp.projects.length; i++) {
+      if (submitProjectsResp.projects[i].id === projectId) { proj = submitProjectsResp.projects[i]; break; }
+    }
+    if (!pendingEdits[projectId]) pendingEdits[projectId] = {};
+    pendingEdits[projectId][field] = value;
+
+    // Nếu sửa lại về đúng giá trị gốc ở MỌI trường, bỏ khỏi pendingEdits (không còn "đã sửa").
+    // So sánh qua String(...) vì proj.values[fld] luôn là chuỗi (server .toString()) trong khi
+    // pendingEdits có thể chứa boolean thật (checkbox) — so trực tiếp !== sẽ luôn coi là "đã sửa"
+    // dù người dùng bấm đi bấm lại về đúng trạng thái cũ.
+    var stillDirty = !proj;
+    if (proj) {
+      for (var f = 0; f < submitProjectsResp.fields.length; f++) {
+        var fld = submitProjectsResp.fields[f];
+        var val = pendingEdits[projectId][fld] !== undefined ? pendingEdits[projectId][fld] : (proj.values[fld] || '');
+        if (String(val) !== String(proj.values[fld] || '')) { stillDirty = true; break; }
+      }
+    }
+    if (!stillDirty) delete pendingEdits[projectId];
+
+    if (el.tagName === 'BUTTON') {
+      var group = el.parentElement;
+      var groupChips = group.querySelectorAll('.priority-chip');
+      for (var gi = 0; gi < groupChips.length; gi++) groupChips[gi].classList.toggle('active', groupChips[gi] === el);
+    }
+
+    var card = el.closest('.edit-card');
+    if (card) {
+      card.classList.toggle('dirty', !!pendingEdits[projectId]);
+      var badge = card.querySelector('.dirty-badge');
+      if (pendingEdits[projectId] && !badge) {
+        card.querySelector('.edit-card-head').insertAdjacentHTML('beforeend', '<span class="dirty-badge">Đã sửa</span>');
+      } else if (!pendingEdits[projectId] && badge) {
+        badge.remove();
+      }
+    }
+    updateSubmitBar();
+  }
+
+  function updateSubmitBar() {
+    var count = Object.keys(pendingEdits).length;
+    $('submit-count').textContent = count;
+    $('submit-bar').style.display = count > 0 ? 'block' : 'none';
+  }
+
+  // Khóa/mở toàn bộ ô nhập của Tab Gửi báo cáo (textarea/chip/checkbox) — tách riêng khỏi nút Gửi
+  // để còn gọi lại được từ renderSubmitFiltered() (giữ trạng thái khóa xuyên suốt kể cả khi người
+  // dùng gõ tìm kiếm làm render lại danh sách trong lúc đang chờ server).
+  function setSubmitFieldsDisabled_(disabled) {
+    var els = document.querySelectorAll('#submit-content textarea.edit-input, #submit-content .priority-chip, #submit-content .bool-input');
+    for (var i = 0; i < els.length; i++) els[i].disabled = disabled;
+  }
+
+  function doSubmitReports() {
+    var edits = Object.keys(pendingEdits).map(function (id) { return { id: id, values: pendingEdits[id] }; });
+    if (edits.length === 0) return;
+    // Chốt chặn KHÔNG cho gửi chồng lần 2 khi lần trước còn đang chạy — server (Control) xử lý
+    // 1 lượt gửi mất TỰ NHIÊN khoảng 30-40s (ghi RAM + render INBC + render THBC), không phải lỗi.
+    // Trước đây không có chốt này, người dùng thấy màn hình chờ lâu tưởng bị treo nên bấm gửi lại
+    // nhiều lần, tạo ra nhiều request CHỒNG CHÉO tranh chấp khóa (LockService) của Control, làm
+    // mọi thứ càng chậm thêm và có lượt bị bỏ dở giữa chừng (lỗi user phản ánh 2026-07-19, xác
+    // nhận qua sheet DEBUG_LOG: 3 lượt gửi cho BC.BIM chồng lên nhau trong vòng 15 giây).
+    if (submitInFlight) { showToast('Đang xử lý lượt gửi trước, vui lòng đợi...', true); return; }
+    submitInFlight = true;
+    var btn = $('submit-send-btn');
+    btn.disabled = true;
+    // Chỉ đổi chữ của #submit-label — KHÔNG ghi đè textContent của CẢ nút, vì nút còn chứa
+    // <span id="submit-count"> lồng bên trong. Ghi đè textContent của nút sẽ XÓA LUÔN span đó
+    // (đổi thành chữ thường), khiến mọi lần cập nhật số đếm sau này không còn tác dụng — hiện lại
+    // đúng số CŨ đã "đông cứng" từ trước (lỗi user phản ánh 2026-07-19: sau khi gửi xong vẫn thấy
+    // "Gửi báo cáo (1)" dù đã gửi hết, đáng lẽ phải ẩn hẳn thanh này vì hết pendingEdits).
+    $('submit-label').textContent = 'Đang xử lý...';
+    setSubmitFieldsDisabled_(true); // Khóa toàn bộ ô nhập — không cho sửa tiếp/gửi chồng trong lúc server đang xử lý
+    // Báo NGAY khi bấm (không chờ server phản hồi mới báo — server xử lý ~30-40s, chờ tới lúc đó
+    // mới báo cảm giác chậm/không phản hồi). Dữ liệu ĐÃ được ghi vào NHAPBC ngay khi request này
+    // gửi đi (webviewSubmitReports ghi trước, gọi API sau) nên báo "đã gửi" ngay là chính xác —
+    // ô nhập vẫn khóa cho tới khi có phản hồi thật để phòng trường hợp gửi thất bại (user yêu cầu
+    // 2026-07-19: cảnh báo 5s ngay khi bấm + khóa UI cho tới khi xử lý xong).
+    showToast('Đã gửi báo cáo, hệ thống đang xử lý (khoảng 30-40s)...');
+    callServer('webviewSubmitReports', [currentDeptCode, currentPassword, edits])
+      .then(function (res) {
+        submitInFlight = false;
+        btn.disabled = false;
+        $('submit-label').textContent = 'Gửi báo cáo';
+        setSubmitFieldsDisabled_(false);
+        if (!res.ok) { showToast(res.error || 'Gửi thất bại.', true); return; }
+        // Phòng trường hợp người dùng đã ĐĂNG XUẤT trong lúc server còn đang xử lý (logout() xóa
+        // submitProjectsResp về null) — callback này vẫn chạy khi phản hồi về tới, không được đụng
+        // vào submitProjectsResp.projects nếu nó đã bị xóa (lỗi Reviewer phát hiện 2026-07-19).
+        if (!submitProjectsResp) return;
+        // Cập nhật NGAY giá trị gốc (baseline) từ chính dữ liệu vừa gửi thành công — KHÔNG gọi lại
+        // loadMyProjects() để tải lại từ server nữa. Trước đây gọi lại ngay sau khi gửi, bắt người
+        // dùng chờ THÊM 1 lượt tải nặng (mở lại file bộ phận, dò lại cấu hình) NGAY SAU lượt gửi
+        // vốn đã chậm — đây chính là nguyên nhân gây cảm giác "treo" dẫn tới lỗi ở trên. Giá trị
+        // mới nhất vốn đã có sẵn trong "edits" (chính là những gì người dùng vừa gõ), không cần
+        // hỏi lại server.
+        edits.forEach(function (edit) {
+          var proj = null;
+          for (var i = 0; i < submitProjectsResp.projects.length; i++) {
+            if (submitProjectsResp.projects[i].id === edit.id) { proj = submitProjectsResp.projects[i]; break; }
+          }
+          if (proj) {
+            // An toàn dù edit.values[f] là boolean thật (field kiểu checkbox) hay chuỗi: server
+            // cũng dùng raw.toString() (Code.js webviewGetMyProjects) và JS Boolean.toString()
+            // đều cho ra "true"/"false" chữ thường như nhau, nên mọi nơi so sánh sau này qua
+            // String(...) vẫn nhất quán.
+            Object.keys(edit.values).forEach(function (f) { proj.values[f] = edit.values[f]; });
+          }
+        });
+        pendingEdits = {};
+        renderSubmitFiltered();
+        updateSubmitBar();
+        // Không báo toast "thành công" lần nữa — đã báo ngay lúc bấm gửi ở trên rồi, chỉ báo LỖI
+        // nếu có (res.ok === false ở nhánh trên) để không làm phiền thêm.
+        // Nạp lại NGAY Tab Thống kê BC — báo cáo vừa gửi có thể đổi trạng thái Đúng giờ/Muộn
+        // trong đó, nếu để cache cũ người dùng phải tự tải lại mới thấy (user yêu cầu 2026-07-19).
+        if (currentCanViewTKBC) { tkbcResp = null; showTkbcTab(); }
+      })
+      .catch(function (err) {
+        submitInFlight = false;
+        btn.disabled = false;
+        $('submit-label').textContent = 'Gửi báo cáo';
+        setSubmitFieldsDisabled_(false);
+        showToast('Lỗi kết nối: ' + err.message, true);
+      });
+  }
+
+  // ---------------- TAB ƯU TIÊN (role "btgd") ----------------
+  // Thay thế trải nghiệm sheet NhapUuTien + menu "Cập nhật ưu tiên" (BC.BTGĐ/UuTien.js). Luồng:
+  // vào tab -> tải toàn bộ dự án (từ overviewResp đã có sẵn, KHÔNG đọc lại sheet THBC) + độ ưu
+  // tiên hiện tại (webviewGetPriorityList) -> chạm chip 1-5/"Bỏ" để sửa (giữ tạm ở pendingPriority,
+  // CHƯA gửi) -> bấm "Lưu thay đổi" 1 lần -> webviewSetPriority gửi TOÀN BỘ trạng thái (đúng hợp
+  // đồng fullReplace của updatePriorityBTGD) rồi Control tự render lại THBC.
+
+  function buildPriorityGroups_() {
+    // Dùng ĐÚNG cấu trúc nhóm + thứ tự của overviewResp (giống hệt Tab Dự án — nhóm "CÁC DỰ ÁN
+    // ƯU TIÊN" luôn ở đầu vì Control đã dựng sẵn vậy, xem Control/RENDER_THBC.js) thay vì tự sắp
+    // xếp lại theo mức ưu tiên đang chọn (user yêu cầu 2026-07-19: "sắp xếp giống hệt Tab Dự án").
+    // 1 dự án có thể xuất hiện 2 LẦN trong overviewResp (nhóm ghim + nhóm Ban gốc, giống lý do
+    // dongBoDuAnUuTien phải loại trùng theo Mã dự án ở BC.BTGĐ/UuTien.js) — chỉ giữ lần gặp đầu
+    // tiên, không thì 1 dự án có 2 bộ chip chỉnh ưu tiên riêng biệt, dễ gây nhầm lẫn.
+    var seen = {};
+    var groups = [];
+    if (!overviewResp || !overviewResp.ok) return groups;
+    for (var gi = 0; gi < overviewResp.groups.length; gi++) {
+      var g = overviewResp.groups[gi];
+      var groupProjects = [];
+      for (var pi = 0; pi < g.projects.length; pi++) {
+        var p = g.projects[pi];
+        if (seen[p.id]) continue;
+        seen[p.id] = true;
+        groupProjects.push({ id: p.id, name: p.name });
+      }
+      if (groupProjects.length > 0) groups.push({ ban: g.ban, isPriority: g.isPriority, projects: groupProjects });
+    }
+    return groups;
+  }
+
+  function showPriorityTab() {
+    if (priorityMapResp && priorityMapResp.ok) {
+      renderPriorityFiltered();
+      updatePriorityBar();
+      return;
+    }
+    var myRequestId = ++priorityRequestId;
+    $('priority-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    $('search-input-priority').value = '';
+    ensureOverview(function () {
+      if (myRequestId !== priorityRequestId) return;
+      if (!overviewResp.ok) {
+        $('priority-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(overviewResp.error || 'Lỗi tải dữ liệu.') + '</div>';
+        return;
+      }
+      callServer('webviewGetPriorityList', [currentPassword])
+        .then(function (res) {
+          if (myRequestId !== priorityRequestId) return;
+          if (!res.ok) {
+            $('priority-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(res.error || 'Lỗi tải dữ liệu.') + '</div>';
+            return;
+          }
+          priorityMapResp = res;
+          pendingPriority = {};
+          for (var id in res.map) pendingPriority[id] = res.map[id];
+          renderPriorityFiltered();
+          updatePriorityBar();
+        })
+        .catch(function (err) {
+          if (myRequestId !== priorityRequestId) return;
+          $('priority-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
+        });
+    });
+  }
+
+  function renderPriorityFiltered() {
+    if (!priorityMapResp || !priorityMapResp.ok) return;
+    var q = $('search-input-priority').value.trim().toLowerCase();
+    var groups = buildPriorityGroups_();
+    var html = '';
+    var totalShown = 0;
+    for (var gi = 0; gi < groups.length; gi++) {
+      var g = groups[gi];
+      var matched = [];
+      for (var pi = 0; pi < g.projects.length; pi++) {
+        var p = g.projects[pi];
+        if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
+        matched.push(p);
+      }
+      if (matched.length === 0) continue;
+      totalShown += matched.length;
+      var banGroupId = 'priority-ban-group-' + gi;
+      var isCollapsed = !q && collapsedBanGroups[g.ban];
+      html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
+      if (g.ban) {
+        html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
+          '<span class="ban-title' + (g.isPriority ? ' priority' : '') + '">' + escapeHtml(g.ban) + ' (' + matched.length + ')</span>' +
+          '<svg class="ban-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"></path></svg>' +
+          '</div>';
+      }
+      for (var k = 0; k < matched.length; k++) {
+        var proj = matched[k];
+        var val = pendingPriority[proj.id] || '';
+        html += '<div class="priority-card' + (val ? ' set' : '') + '" data-project="' + escapeHtml(proj.id) + '">' +
+          '<div class="priority-card-head"><div class="project-name">' + escapeHtml(proj.name) + '</div>' +
+          '<div class="project-sub">' + escapeHtml(proj.id) + '</div></div>' +
+          '<div class="priority-chips">';
+        for (var lvl = 1; lvl <= 5; lvl++) {
+          html += '<button class="priority-chip' + (val === String(lvl) ? ' active' : '') + '" data-value="' + lvl + '">' + lvl + '</button>';
+        }
+        html += '<button class="priority-chip clear' + (!val ? ' active' : '') + '" data-value="">Bỏ</button>';
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+    $('priority-content').innerHTML = totalShown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    var chips = document.querySelectorAll('#priority-content .priority-chip');
+    for (var c = 0; c < chips.length; c++) chips[c].addEventListener('click', onPriorityChipClick);
+    // Giữ nguyên trạng thái khóa (nếu đang có 1 lượt lưu chạy dở) khi render lại — ví dụ người
+    // dùng gõ tìm kiếm trong lúc đang chờ server phản hồi.
+    if (priorityInFlight) setPriorityFieldsDisabled_(true);
+    var banTitles = document.querySelectorAll('#tab-priority .ban-title-row');
+    for (var b = 0; b < banTitles.length; b++) {
+      banTitles[b].addEventListener('click', function () {
+        var banName = this.getAttribute('data-ban-name');
+        collapsedBanGroups[banName] = !collapsedBanGroups[banName];
+        $(this.getAttribute('data-ban-group')).classList.toggle('collapsed');
+      });
+    }
+  }
+
+  function setPriorityFieldsDisabled_(disabled) {
+    var chips = document.querySelectorAll('#priority-content .priority-chip');
+    for (var i = 0; i < chips.length; i++) chips[i].disabled = disabled;
+  }
+
+  function onPriorityChipClick(e) {
+    var card = e.target.closest('.priority-card');
+    var projectId = card.getAttribute('data-project');
+    var value = e.target.getAttribute('data-value');
+    pendingPriority[projectId] = value;
+    card.classList.toggle('set', !!value);
+    var chips = card.querySelectorAll('.priority-chip');
+    for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('active', chips[i].getAttribute('data-value') === value);
+    updatePriorityBar();
+  }
+
+  function updatePriorityBar() {
+    var baseline = (priorityMapResp && priorityMapResp.ok) ? priorityMapResp.map : {};
+    var changed = 0;
+    var allIds = {};
+    for (var id1 in baseline) allIds[id1] = true;
+    for (var id2 in pendingPriority) allIds[id2] = true;
+    for (var id in allIds) {
+      if ((baseline[id] || '') !== (pendingPriority[id] || '')) changed++;
+    }
+    $('priority-count').textContent = changed;
+    $('priority-bar').style.display = changed > 0 ? 'block' : 'none';
+  }
+
+  function doSavePriority() {
+    var payload = [];
+    for (var id in pendingPriority) {
+      if (pendingPriority[id]) payload.push({ projectId: id, priority: pendingPriority[id] });
+    }
+    // Cùng cơ chế chống gửi chồng như Tab Gửi báo cáo (doSubmitReports) — updatePriorityBTGD mất
+    // ~15-20s để xử lý xong (xác nhận qua DEBUG_LOG 2026-07-19).
+    if (priorityInFlight) { showToast('Đang xử lý lượt lưu trước, vui lòng đợi...', true); return; }
+    priorityInFlight = true;
+    var btn = $('priority-save-btn');
+    btn.disabled = true;
+    // Chỉ đổi #priority-label, không ghi đè textContent của cả nút — cùng lý do như
+    // submit-send-btn (tránh xóa mất <span id="priority-count"> lồng bên trong).
+    $('priority-label').textContent = 'Đang xử lý...';
+    setPriorityFieldsDisabled_(true);
+    // Báo NGAY khi bấm, giống Tab Gửi báo cáo — không bắt chờ server mới thấy phản hồi.
+    showToast('Đã gửi yêu cầu cập nhật ưu tiên, hệ thống đang xử lý (khoảng 15-20s)...');
+    callServer('webviewSetPriority', [currentPassword, payload])
+      .then(function (res) {
+        priorityInFlight = false;
+        btn.disabled = false;
+        $('priority-label').textContent = 'Lưu thay đổi';
+        setPriorityFieldsDisabled_(false);
+        if (!res.ok) { showToast(res.error || 'Lưu thất bại.', true); return; }
+        priorityMapResp = { ok: true, map: {} };
+        for (var id in pendingPriority) if (pendingPriority[id]) priorityMapResp.map[id] = pendingPriority[id];
+        updatePriorityBar();
+        // Không báo toast "thành công" lần nữa — đã báo ngay lúc bấm lưu ở trên rồi.
+        // Nạp lại danh sách dự án ngay (Control đã render xong sheet đích của BC.BTGĐ trước khi
+        // trả kết quả về đây — xem getCanonicalThbcTarget_ ở Code.js) — để Tab Dự án tự cập nhật
+        // đúng nhóm "CÁC DỰ ÁN ƯU TIÊN" mà KHÔNG bắt người dùng tải lại cả trang (lỗi user phản
+        // ánh 2026-07-19: dự án mới ghim ưu tiên không hiện dù bấm tải lại nhiều lần, vì
+        // overviewResp chỉ nạp 1 lần lúc đăng nhập và không tự làm mới sau đó).
+        overviewResp = null;
+        loadOverview();
+      })
+      .catch(function (err) {
+        priorityInFlight = false;
+        btn.disabled = false;
+        $('priority-label').textContent = 'Lưu thay đổi';
+        setPriorityFieldsDisabled_(false);
+        showToast('Lỗi kết nối: ' + err.message, true);
+      });
+  }
+
+  // ---------------- TAB THỐNG KÊ BC (role "manager"/"btgd") ----------------
+  // Đọc trực tiếp file TKBC trung tâm (Code.js: webviewGetTKBC), tháng này + tháng trước, cấu
+  // trúc CỐ ĐỊNH theo sheet "mm.yyyy" thật (xem parseTKBCSheet_).
+
+  function showTkbcTab() {
+    if (tkbcResp && tkbcResp.ok) { renderTkbc(); return; }
+    var myRequestId = ++tkbcRequestId;
+    $('tkbc-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    callServer('webviewGetTKBC', [currentPassword])
+      .then(function (res) {
+        if (myRequestId !== tkbcRequestId) return;
+        tkbcResp = res;
+        renderTkbc();
+      })
+      .catch(function (err) {
+        if (myRequestId !== tkbcRequestId) return;
+        $('tkbc-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderTkbc() {
+    if (!tkbcResp) return;
+    if (!tkbcResp.ok) {
+      $('tkbc-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(tkbcResp.error || 'Lỗi tải dữ liệu.') + '</div>';
+      return;
+    }
+    if (!tkbcResp.months || tkbcResp.months.length === 0) {
+      $('tkbc-content').innerHTML = '<div class="state-msg"><div class="icon">&#128203;</div>Chưa có dữ liệu thống kê.</div>';
+      return;
+    }
+    var html = '';
+    for (var m = 0; m < tkbcResp.months.length; m++) {
+      var month = tkbcResp.months[m];
+      html += '<div class="tkbc-month-title">' + escapeHtml(month.label) + '</div>';
+      if (!month.departments || month.departments.length === 0) {
+        html += '<div class="state-msg" style="padding:20px 24px;"><div class="icon">&#128203;</div>Chưa có dữ liệu.</div>';
+        continue;
+      }
+      for (var d = 0; d < month.departments.length; d++) {
+        var dept = month.departments[d];
+        html += '<div class="tkbc-card">';
+        html += '<div class="tkbc-card-head"><div class="tkbc-name">' + escapeHtml(dept.name) + '</div>' +
+          (dept.timestamp ? '<div class="tkbc-timestamp">' + escapeHtml(dept.timestamp) + '</div>' : '') + '</div>';
+        html += '<div class="tkbc-stats">' +
+          '<span class="tkbc-stat-badge ok">Đúng giờ: ' + escapeHtml(dept.onTime) + (dept.onTimePct ? ' (' + escapeHtml(dept.onTimePct) + ')' : '') + '</span>';
+        if (dept.late > 0) html += '<span class="tkbc-stat-badge bad">Muộn: ' + escapeHtml(dept.late) + (dept.latePct ? ' (' + escapeHtml(dept.latePct) + ')' : '') + '</span>';
+        html += '</div>';
+        html += '<div class="tkbc-days">';
+        (month.dueDays || []).forEach(function (day) {
+          var dInfo = dept.days ? dept.days[day] : null;
+          var status = dInfo ? dInfo.status : '';
+          var cls = 'tkbc-day';
+          var label = '−';
+          if (status === 'Đ') { cls += ' ontime'; label = 'Đ'; }
+          else if (status === 'M') { cls += ' late'; label = 'M'; }
+          else { cls += ' missed'; }
+          // Thêm thứ trong tuần trước số ngày (vd "T4, 1") — user yêu cầu 2026-07-19, phải hiện
+          // chung 1 dòng không xuống hàng (xem .tkbc-day .d-num white-space:nowrap ở CSS).
+          var wd = (month.weekdays && month.weekdays[day]) ? month.weekdays[day] : '';
+          var dayLabel = wd ? (wd + ', ' + day) : String(day);
+          html += '<div class="' + cls + '"><div class="d-num">' + escapeHtml(dayLabel) + '</div><div class="d-status">' + label + '</div></div>';
+        });
+        html += '</div></div>';
+      }
+    }
+    html += '<div class="tkbc-legend">' +
+      '<span><span class="dot" style="background:var(--ok-border)"></span>Đúng giờ</span>' +
+      '<span><span class="dot" style="background:var(--priority-border)"></span>Muộn</span>' +
+      '<span><span class="dot" style="background:var(--bad-border)"></span>Chưa gửi</span>' +
+      '</div>';
+    $('tkbc-content').innerHTML = html;
+  }
+
+  // ---------------- TAB DANH SÁCH DA ----------------
+  // Đọc trực tiếp Project_List (Control) — Code.js webviewGetProjectList giữ NGUYÊN thứ tự dòng
+  // gốc, client KHÔNG tự sắp xếp lại.
+
+  function showDanhSachDaTab() {
+    if (projectListResp && projectListResp.ok) { renderDanhSachDaFiltered(); return; }
+    var myRequestId = ++projectListRequestId;
+    $('danhsachda-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+    callServer('webviewGetProjectList', [currentPassword])
+      .then(function (res) {
+        if (myRequestId !== projectListRequestId) return;
+        projectListResp = res;
+        renderDanhSachDaFiltered();
+      })
+      .catch(function (err) {
+        if (myRequestId !== projectListRequestId) return;
+        $('danhsachda-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
+      });
+  }
+
+  function renderDanhSachDaFiltered() {
+    if (!projectListResp) return;
+    if (!projectListResp.ok) {
+      $('danhsachda-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(projectListResp.error || 'Lỗi tải dữ liệu.') + '</div>';
+      return;
+    }
+    var q = $('search-input-danhsachda').value.trim().toLowerCase();
+    var html = '';
+    var shown = 0;
+    for (var i = 0; i < projectListResp.projects.length; i++) {
+      var p = projectListResp.projects[i];
+      if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
+      shown++;
+      html += '<div class="da-card">' +
+        '<div class="da-card-head"><span class="da-id-badge">' + escapeHtml(p.id) + '</span>' +
+        '<div class="da-name">' + escapeHtml(p.name) + '</div></div>';
+      if (p.ban || p.resp) {
+        html += '<div class="da-meta">';
+        if (p.ban) html += '<span>Ban: <b>' + escapeHtml(p.ban) + '</b></span>';
+        if (p.resp) html += '<span>Bộ phận phụ trách: <b>' + escapeHtml(p.resp) + '</b></span>';
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    $('danhsachda-content').innerHTML = shown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+  }
+
+  function logout() {
+    localStorage.removeItem(STORAGE_KEY);
+    currentPassword = '';
+    currentRole = null; currentDeptCode = null; currentDeptName = null; currentCanViewTKBC = false; currentCanViewProjectList = false;
+    $('password-input').value = '';
+    $('login-error').textContent = '';
+    // Xóa cache — nếu không, đăng nhập lại (không tải lại trang, app là SPA) sẽ hiện ngay dữ
+    // liệu CŨ của phiên trước trong lúc chờ dữ liệu mới, vì ensureOverview/ensureDeptMap coi
+    // biến cache khác null là "đã sẵn sàng" và gọi callback ngay lập tức.
+    overviewResp = null; deptListResp = null; deptMapResp = null; deptDetailData = null;
+    mainEntered = false;
+    submitProjectsResp = null; pendingEdits = {}; submitInFlight = false;
+    priorityMapResp = null; pendingPriority = {}; priorityInFlight = false;
+    tkbcResp = null;
+    projectListResp = null;
+    openProjectIds = {};
+    searchWasOpenByTab = {};
+    closeSearchOverlay_(false);
+    showView('view-login');
+  }
+
+  // Tự lấy App_Title MỚI NHẤT từ CONFIG_SETTINGS (Control) mỗi lần mở app — trang này giờ TĨNH
+  // (host trên GitHub Pages), không còn được server thay sẵn {{APP_TITLE}} trong HTML trước khi
+  // trả về như bản iframe cũ (THBC_WEBVIEW_HTML/Code.js doGet) nữa. Chạy SONG SONG, không chặn
+  // luồng đăng nhập — lỗi ở đây (mất mạng) chỉ khiến tiêu đề giữ nguyên giá trị mặc định "Báo cáo
+  // TDC" đã có sẵn trong HTML, không ảnh hưởng gì tới việc đăng nhập.
+  callServer('webviewGetAppConfig', []).then(function (res) {
+    if (res && res.ok && res.appTitle) {
+      document.title = res.appTitle;
+      $('app-title-h2').textContent = res.appTitle;
+    }
+  }).catch(function () { /* Giữ nguyên tiêu đề mặc định nếu lỗi mạng — không cần báo lỗi */ });
+
+  // Đăng ký Service Worker — ĐIỀU KIỆN BẮT BUỘC để trình duyệt/Android coi đây là PWA "cài đặt
+  // được" (Add to Home Screen tạo icon thật, mở full-screen không thanh địa chỉ), đồng thời cache
+  // khung giao diện (HTML/CSS/JS, icon, manifest) để mở lại gần như tức thời ở lần sau — đáp ứng
+  // yêu cầu "trải nghiệm như 1 app thông thường" (user 2026-07-19/20). Dữ liệu THẬT (fetch() gọi
+  // Code.js) KHÔNG bị cache — sw.js chỉ cache đúng khung giao diện tĩnh, luôn xin dữ liệu mới từ
+  // server mỗi lần dùng, không có rủi ro hiện dữ liệu cũ tưởng là mới.
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* PWA vẫn dùng bình thường nếu đăng ký thất bại, chỉ mất phần cache/cài đặt vào màn hình chính */ });
+    });
+  }
+
+  if (currentPassword) verifyAndProceed(currentPassword, true);
+  else showView('view-login');
+})();
+</script>
 </body>
 </html>
