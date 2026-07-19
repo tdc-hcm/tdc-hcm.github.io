@@ -476,6 +476,7 @@
   // giác gần giống "vẫn ở nguyên chỗ cũ" nhất có thể.
   var currentTab = localStorage.getItem(LAST_TAB_KEY) || 'projects';
   var deptDetailData = null;
+  var currentDeptDetailCode = null; // Mã bộ phận đang xem chi tiết (null nếu đang ở lưới) — dùng để vẽ lại đúng khi dữ liệu nền cập nhật, xem refreshDeptDetailIfOpen_()
   var collapsedBanGroups = {}; // "Tên Ban" -> true nếu đang thu gọn — phải lưu NGOÀI renderProjectsFiltered() để không bị xóa mỗi khi gõ tìm kiếm làm render lại (lỗi Reviewer phát hiện 2026-07-19)
   var openProjectIds = {}; // "Mã dự án" -> true nếu báo cáo đang xổ ra ở Tab Dự án — lưu theo MÃ DỰ
                             // ÁN (không theo id dòng "proj-<nhóm>-<thứ tự>", vì id dòng đổi mỗi lần
@@ -595,6 +596,7 @@
         if (res.ok) saveCache_('overview', res);
         var cbs = overviewCbs; overviewCbs = []; flushCbs(cbs);
         if (!hadCbs && !cbs.length && currentTab === 'projects') renderProjectsFiltered();
+        refreshDeptDetailIfOpen_(); // Đang xem chi tiết 1 bộ phận (Tab Bộ phận) bằng dữ liệu cache cũ -> vẽ lại bằng bản MỚI này (không thì kẹt mãi ở dữ liệu cũ, lỗi Reviewer phát hiện 2026-07-20)
       })
       .catch(function (err) {
         if (overviewResp && overviewResp.ok) return; // Đã có cache đang hiện -> giữ nguyên, bỏ qua lỗi làm mới lần này
@@ -625,6 +627,7 @@
         deptMapResp = res;
         if (res.ok) saveCache_('deptMap', res);
         var cbs = deptMapCbs; deptMapCbs = []; flushCbs(cbs);
+        refreshDeptDetailIfOpen_(); // Cùng lý do ở loadOverview() — Bộ phận đang xem có thể cần deptMap để lọc (3 bộ phận Thiết kế)
       })
       .catch(function (err) {
         if (deptMapResp && deptMapResp.ok) return;
@@ -1182,6 +1185,7 @@
   function openDepartmentDetail(code) {
     var myRequestId = ++openRequestId;
     var dept = findDeptConfig(code);
+    currentDeptDetailCode = code; // Nhớ lại đang xem bộ phận nào -> refreshDeptDetailIfOpen_() dùng để vẽ lại khi có dữ liệu nền mới về (xem loadOverview/loadDeptMap)
     $('dept-grid-area').style.display = 'none';
     $('dept-detail-area').style.display = 'block';
     $('dept-detail-content').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
@@ -1195,9 +1199,15 @@
     // Đẩy 1 mốc lịch sử trình duyệt THẬT — bản PWA này chạy ở trang top-level (không còn bên trong
     // iframe Apps Script như bản cũ), nên history.pushState/popstate hoạt động đúng: vuốt lùi/bấm
     // back CỨNG của điện thoại giờ đóng được về lưới bộ phận thay vì thoát thẳng app (user yêu cầu
-    // 2026-07-19/20: "back ra vẫn lưu lại dữ liệu, không thoát app").
-    history.pushState({ view: 'dept-detail' }, '');
-    deptDetailHistoryPushed = true;
+    // 2026-07-19/20: "back ra vẫn lưu lại dữ liệu, không thoát app"). CHỈ đẩy mốc mới nếu CHƯA có
+    // mốc nào đang chờ tiêu thụ — bấm back rồi bấm NGAY vào 1 bộ phận khác trước khi history.back()
+    // (bất đồng bộ) kịp xử lý xong có thể khiến back() đó "ăn nhầm" mốc vừa đẩy cho bộ phận mới,
+    // đóng luôn màn hình vừa mở (Reviewer phát hiện 2026-07-20, race hiếm nhưng có thật) — không
+    // đẩy chồng thêm mốc thứ 2 thì dù back() có xử lý trễ cũng chỉ tiêu thụ đúng 1 mốc duy nhất.
+    if (!deptDetailHistoryPushed) {
+      history.pushState({ view: 'dept-detail' }, '');
+      deptDetailHistoryPushed = true;
+    }
 
     if (!dept) { showDeptDetailError('Bộ phận không hợp lệ.'); return; }
 
@@ -1214,6 +1224,23 @@
         finishOpenDepartment(dept, null);
       }
     });
+  }
+
+  // Vẽ lại ĐÚNG bộ phận đang xem (nếu có) khi overviewResp/deptMapResp trong bộ nhớ vừa được thay
+  // bằng bản MỚI hơn (loadOverview()/loadDeptMap() gọi hàm này sau khi tải xong) — không thì màn
+  // hình chi tiết bộ phận có thể kẹt hiện dữ liệu CŨ (từ cache hydrate lúc mở app) mãi tới khi
+  // người dùng tự thoát ra rồi bấm lại đúng bộ phận đó lần nữa (lỗi Reviewer phát hiện 2026-07-20).
+  function refreshDeptDetailIfOpen_() {
+    if (!currentDeptDetailCode || $('dept-detail-area').style.display === 'none') return;
+    if (!overviewResp || !overviewResp.ok) return;
+    var dept = findDeptConfig(currentDeptDetailCode);
+    if (!dept) return;
+    if (dept.plCode) {
+      if (!deptMapResp || !deptMapResp.ok) return;
+      finishOpenDepartment(dept, deptMapResp.map);
+    } else {
+      finishOpenDepartment(dept, null);
+    }
   }
 
   function showDeptDetailError(msg) {
@@ -1327,6 +1354,7 @@
   });
 
   function resetDeptDetailView_() {
+    currentDeptDetailCode = null;
     $('dept-detail-area').style.display = 'none';
     $('dept-grid-area').style.display = 'block';
     $('topbar-title').textContent = '';
@@ -1976,6 +2004,16 @@
   var zoomLevel = parseFloat(localStorage.getItem(ZOOM_KEY)) || 1;
   function applyZoom_() {
     $('app').style.zoom = zoomLevel;
+    // .search-fab/.search-bar là position:fixed NHƯNG lại nằm BÊN TRONG #app (không như
+    // .zoom-controls đặt hẳn ngoài #app) — CSS zoom trên Chrome vẫn phóng to/lệch vị trí luôn cả
+    // con cháu fixed-position của tổ tiên bị zoom (khác hẳn transform:scale vốn tạo containing
+    // block riêng), khiến nút tìm kiếm nổi bị to/lệch theo mức zoom thay vì giữ nguyên như mong
+    // muốn (Reviewer phát hiện 2026-07-20) — bù lại bằng zoom nghịch đảo NGAY TRÊN 2 phần tử này để
+    // triệt tiêu hiệu ứng phóng to của tổ tiên.
+    var inverse = 1 / zoomLevel;
+    $('search-fab').style.zoom = inverse;
+    var bars = document.querySelectorAll('.search-bar');
+    for (var i = 0; i < bars.length; i++) bars[i].style.zoom = inverse;
     try { localStorage.setItem(ZOOM_KEY, zoomLevel); } catch (e) { /* bỏ qua */ }
   }
   $('zoom-in-btn').addEventListener('click', function () {
