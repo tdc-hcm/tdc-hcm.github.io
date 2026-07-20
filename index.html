@@ -637,6 +637,17 @@
 
 <script>
 (function () {
+  // (2026-07-20) TẮT tính năng tự khôi phục vị trí cuộn của trình duyệt gắn với mỗi mốc lịch sử —
+  // đây MỚI LÀ nguyên nhân thật của lỗi "đóng tìm kiếm thì trang nhảy về đúng vị trí lúc bấm mở
+  // tìm kiếm" (không phải do Ban tự thu gọn như đoán trước đó, user đã xác nhận Ban vẫn mở bình
+  // thường). Trình duyệt TỰ ĐỘNG lưu lại vị trí cuộn tại thời điểm pushState() và tự khôi phục lại
+  // đúng vị trí đó mỗi khi history.back()/popstate quay về mốc đó — xảy ra với MỌI lượt gọi
+  // history.back(), kể cả gọi bằng code (programmaticHistoryBack_) chứ không chỉ khi người dùng tự
+  // vuốt/bấm back thật. Toàn bộ cơ chế tìm kiếm/chi tiết bộ phận/tab trong file này đều dùng
+  // pushState/history.back() nên đều dính lỗi này. Đặt "manual" để tự kiểm soát hoàn toàn — không
+  // ai chủ động lưu/khôi phục cuộn ở đâu cả, nghĩa là vị trí cuộn LUÔN giữ nguyên xuyên suốt mọi
+  // lượt mở/đóng tìm kiếm hay back, đúng yêu cầu user.
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
   var STORAGE_KEY = 'bc_webview_password';
   var currentPassword = localStorage.getItem(STORAGE_KEY) || '';
   // (2026-07-20) KHÔNG còn khôi phục tab đã xem lần trước qua localStorage — user yêu cầu bỏ,
@@ -863,6 +874,29 @@
   }
 
   function $(id) { return document.getElementById(id); }
+
+  // (2026-07-20) Bù trừ vị trí các phần tử fixed/sticky (nút tròn tìm kiếm, thanh tìm kiếm, dải
+  // tab) khi bàn phím ảo hiện — user xác nhận thẻ <meta interactive-widget=resizes-visual> KHÔNG
+  // đủ khắc phục hoàn toàn (có thể do phiên bản Chrome/WebView cụ thể không tôn trọng đầy đủ), lỗi
+  // chỉ xảy ra khi bàn phím hiện (đổi bàn phím khác vẫn lỗi -> chắc chắn không phải do 1 ứng dụng
+  // bàn phím cụ thể). Dùng trực tiếp VisualViewport API — offsetTop báo ĐÚNG khoảng "vùng nhìn
+  // thấy thật" đã trôi so với layout viewport gốc (bất kể lý do gì gây ra, kể cả do bàn phím) —
+  // dịch NGƯỢC lại đúng khoảng đó bằng transform để 3 nhóm phần tử này luôn neo đúng vị trí NHÌN
+  // THẤY ĐƯỢC, không phụ thuộc trình duyệt/phiên bản cụ thể có tôn trọng interactive-widget hay
+  // không (cách này chủ động 100%, không cần trình duyệt hỗ trợ tính năng nào thêm ngoài
+  // VisualViewport — đã hỗ trợ rộng rãi từ lâu).
+  if (window.visualViewport) {
+    var syncFixedToVisualViewport_ = function () {
+      var offset = window.visualViewport.offsetTop || 0;
+      var t = offset ? 'translateY(' + offset + 'px)' : '';
+      $('search-fab').style.transform = t;
+      $('tabbar').style.transform = t;
+      var bars = document.querySelectorAll('.search-bar');
+      for (var i = 0; i < bars.length; i++) bars[i].style.transform = t;
+    };
+    window.visualViewport.addEventListener('resize', syncFixedToVisualViewport_);
+    window.visualViewport.addEventListener('scroll', syncFixedToVisualViewport_);
+  }
 
   // Toast tự tắt sau 5s — thay cho alert() gốc trình duyệt (hiện khung nhúng rất xấu, bắt bấm OK,
   // trải nghiệm không mượt trên giao diện người dùng cuối — user yêu cầu 2026-07-19).
@@ -1169,7 +1203,13 @@
   $('tab-btn-tkbc').addEventListener('click', function () { switchTab('tkbc'); });
   $('tab-btn-danhsachda').addEventListener('click', function () { switchTab('danhsachda'); });
   $('submit-send-btn').addEventListener('click', doSubmitReports);
-  $('add-project-close-btn').addEventListener('click', closeAddProjectPicker);
+  // (2026-07-20) BỌC trong hàm rỗng — addEventListener luôn truyền Event làm tham số đầu tiên cho
+  // handler, nếu gọi thẳng closeAddProjectPicker (không bọc) thì Event đó bị đọc NHẦM thành
+  // fromPopstate (luôn truthy vì Event là object) -> đi nhầm sang nhánh "đã bị popstate tiêu thụ
+  // rồi", không gọi programmaticHistoryBack_() để tiêu thụ đúng mốc lịch sử đã đẩy lúc mở picker —
+  // để sót 1 mốc "ma" khiến lần bấm back THẬT tiếp theo ở bất kỳ đâu trong app bị nuốt mất vô hình
+  // (lỗi Reviewer phát hiện 2026-07-20).
+  $('add-project-close-btn').addEventListener('click', function () { closeAddProjectPicker(); });
   $('add-project-search-input').addEventListener('input', renderAddProjectPickerList);
   // Bấm vào nền tối (ngoài sheet) để đóng, giống bottom-sheet chuẩn — không đóng khi bấm bên
   // trong sheet (kiểm tra e.target === chính overlay, không phải phần tử con nào đó nổi bọt lên).
@@ -1362,6 +1402,10 @@
     // LUÔN thoát khỏi view chi tiết bộ phận (nếu đang mở) khi chuyển tab — dù chuyển sang tab nào,
     // KỂ CẢ không phải "Bộ phận".
     backFromDeptDetail();
+    // (2026-07-20) LUÔN đóng picker "+ Thêm dự án" (nếu đang mở) khi chuyển tab — trước đây picker
+    // vẫn hiện nguyên trên màn hình dù tab phía dưới đã đổi hẳn (lỗi user phản ánh, đã ghi nhận từ
+    // vòng review trước — "cửa sổ + Thêm dự án chưa được nối vào cơ chế back").
+    closeAddProjectPicker();
     // Đưa trang về đầu mỗi khi đổi tab — vị trí cuộn của tab CŨ không còn ý nghĩa gì với tab MỚI
     // (nội dung khác hẳn), để nguyên có thể khiến tab mới hiện dở dang (cuộn sẵn xuống giữa danh
     // sách chưa kịp thấy).
@@ -1777,7 +1821,7 @@
     // visibilitychange/setTimeout re-arm ở dưới có thể chạy đúng lúc đó (lỗi Reviewer phát hiện
     // 2026-07-20). Khi có tầng khác đang mở, không cần bảo vệ gốc — tầng đó tự có mốc riêng, gốc
     // sẽ được đẩy lại đúng lúc SAU khi tầng đó đóng hết (popstate rơi tới nhánh gốc mới gọi hàm này).
-    if (searchHistoryPushed || deptDetailHistoryPushed || tabHistoryPushed) return;
+    if (addProjectHistoryPushed || searchHistoryPushed || deptDetailHistoryPushed || tabHistoryPushed) return;
     history.pushState({ view: 'root' }, '');
     rootHistoryPushed = true;
   }
@@ -1793,12 +1837,18 @@
   });
 
   // Thứ tự kiểm tra QUAN TRỌNG — phải khớp đúng thứ tự các tầng đã pushState (tầng mở SAU cùng
-  // phải đóng TRƯỚC, kiểu ngăn xếp): mốc do code TỰ tiêu thụ (bỏ qua hẳn) -> tìm kiếm (có thể mở
-  // TRÊN CÙNG bất kỳ tab/màn hình nào, kể cả chi tiết bộ phận) -> chi tiết bộ phận -> tab trước đó
-  // -> cuối cùng mới tới mốc "gốc" (double-back-to-exit).
+  // phải đóng TRƯỚC, kiểu ngăn xếp): mốc do code TỰ tiêu thụ (bỏ qua hẳn) -> picker "+ Thêm dự án"
+  // (modal nổi trên cùng, nếu có mở luôn là tầng SAU CÙNG so với tìm kiếm/chi tiết bộ phận) -> tìm
+  // kiếm (có thể mở TRÊN CÙNG bất kỳ tab/màn hình nào, kể cả chi tiết bộ phận) -> chi tiết bộ phận
+  // -> tab trước đó -> cuối cùng mới tới mốc "gốc" (double-back-to-exit).
   window.addEventListener('popstate', function () {
     if (pendingProgrammaticBack > 0) {
       pendingProgrammaticBack--;
+      return;
+    }
+    if (addProjectHistoryPushed) {
+      addProjectHistoryPushed = false;
+      closeAddProjectPicker(true);
       return;
     }
     if (searchHistoryPushed) {
@@ -2069,8 +2119,17 @@
   // webviewAddProject/webviewDeleteAddedProject.
   // =========================================================================
 
+  // (2026-07-20) Nối "+ Thêm dự án" vào cơ chế back — trước đây bấm back/chuyển tab lúc picker
+  // đang mở thì picker vẫn hiện nguyên trên màn hình trong khi thứ khác phía dưới đã đổi (lỗi user
+  // phản ánh, đã ghi nhận từ vòng review trước). Dùng ĐÚNG mẫu cờ đơn (giống search/dept-detail).
+  var addProjectHistoryPushed = false;
+
   function openAddProjectPicker() {
     $('add-project-overlay').classList.add('open');
+    if (!addProjectHistoryPushed) {
+      history.pushState({ view: 'addProject' }, '');
+      addProjectHistoryPushed = true;
+    }
     $('add-project-search-input').value = '';
     if (addProjectListResp && addProjectListResp.ok) {
       renderAddProjectPickerList();
@@ -2092,8 +2151,18 @@
     $('add-project-search-input').focus();
   }
 
-  function closeAddProjectPicker() {
+  // fromPopstate=true: đang được gọi TỪ popstate (back/vuốt lùi thật đã tiêu thụ đúng mốc rồi) —
+  // chỉ đồng bộ lại cờ, KHÔNG tự gọi history.back() thêm lần nữa. Mặc định (đóng bằng tay: chạm
+  // nền tối, chuyển tab...): tiêu thụ mốc đã đẩy lúc mở qua programmaticHistoryBack_(), cùng cơ chế
+  // với đóng tìm kiếm/chi tiết bộ phận bằng tay.
+  function closeAddProjectPicker(fromPopstate) {
     $('add-project-overlay').classList.remove('open');
+    if (fromPopstate) {
+      addProjectHistoryPushed = false;
+    } else if (addProjectHistoryPushed) {
+      addProjectHistoryPushed = false;
+      programmaticHistoryBack_();
+    }
   }
 
   function renderAddProjectPickerList() {
@@ -2636,6 +2705,7 @@
     searchHistoryPushed = false;
     if (rootExitRearmTimer) { clearTimeout(rootExitRearmTimer); rootExitRearmTimer = null; }
     tabHistoryPushed = false; // Cùng lý do — mốc "rời Home" của phiên TRƯỚC không còn ý nghĩa gì sau khi đăng xuất
+    addProjectHistoryPushed = false; // Cùng lý do — picker "+ Thêm dự án" của phiên TRƯỚC không còn ý nghĩa gì sau khi đăng xuất
     pendingProgrammaticBack = 0;
     currentDeptDetailCode = null;
     // Xóa luôn cache localStorage (không chỉ biến trong bộ nhớ) — phòng trường hợp thiết bị dùng
@@ -2644,6 +2714,7 @@
       try { localStorage.removeItem(CACHE_PREFIX + k); } catch (e) { /* bỏ qua */ }
     });
     closeSearchOverlay_(false);
+    $('add-project-overlay').classList.remove('open'); // Dọn hiển thị — cờ addProjectHistoryPushed đã reset ở trên rồi, không gọi closeAddProjectPicker() để tránh tự ý history.back()
     // Lộ lại FORM nhập mật khẩu (không phải màn hình spinner "Đang đăng nhập...") — nếu phiên vừa
     // rồi vào bằng auto-login (mật khẩu lưu sẵn), #login-auto-area vẫn đang hiện từ lúc mở app tới
     // giờ (chưa có gì lật lại nó), đăng xuất mà không tự làm việc này thì màn hình bị kẹt ở spinner
