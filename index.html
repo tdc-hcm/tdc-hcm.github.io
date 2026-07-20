@@ -362,6 +362,61 @@
   .toast.error { background: #c0392b; }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .logout-link { text-align: center; padding: 4px 20px 22px; color: var(--text-muted); font-size: 12.5px; text-decoration: underline; cursor: pointer; }
+
+  /* Nút "+ Thêm dự án" — cuối danh sách Tab Gửi báo cáo (user 2026-07-20). */
+  .add-project-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px; width: calc(100% - 16px);
+    margin: 4px 8px 14px; padding: 12px; border: 1.5px dashed var(--border); border-radius: 12px;
+    background: transparent; color: var(--accent); font-size: 13.5px; font-weight: 700; cursor: pointer;
+  }
+  .add-project-btn:active { background: var(--accent-soft); }
+  .add-project-btn:disabled { opacity: .5; }
+  .add-project-btn-icon { font-size: 16px; line-height: 1; }
+
+  /* Nút xóa (×) trên thẻ dự án vừa thêm trong phiên — CHỈ hiện cho dự án chưa gửi báo cáo. */
+  .remove-added-btn {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%; border: none;
+    background: var(--bad-bg); color: var(--bad-text); font-size: 11px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .remove-added-btn:disabled { opacity: .5; }
+
+  /* Picker "+ Thêm dự án" — sheet trượt lên từ đáy, giống bottom-sheet quen thuộc trên mobile. */
+  .add-project-overlay {
+    position: fixed; inset: 0; z-index: 200; background: rgba(10, 14, 22, .45);
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .18s ease;
+  }
+  .add-project-overlay.open { opacity: 1; pointer-events: auto; }
+  .add-project-sheet {
+    width: 100%; max-width: 760px; max-height: 82vh; background: var(--surface);
+    border-radius: 18px 18px 0 0; box-shadow: var(--shadow); display: flex; flex-direction: column;
+    transform: translateY(16px); transition: transform .2s ease; overflow: hidden;
+  }
+  .add-project-overlay.open .add-project-sheet { transform: translateY(0); }
+  .add-project-sheet-head {
+    display: flex; align-items: center; justify-content: space-between; padding: 16px 16px 8px;
+    flex-shrink: 0;
+  }
+  .add-project-sheet-title { font-size: 16px; font-weight: 800; color: var(--text); }
+  .add-project-close-btn {
+    width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--surface-alt);
+    color: var(--text-muted); font-size: 13px; cursor: pointer;
+  }
+  .add-project-search-wrap {
+    margin: 4px 16px 10px; height: 44px; background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 12px; flex-shrink: 0;
+  }
+  .add-project-search-wrap input { padding: 0 14px 0 38px; }
+  #add-project-list { overflow-y: auto; padding: 0 8px 16px; flex: 1; }
+  .add-project-item {
+    width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 11px 13px; margin: 0 8px 8px; cursor: pointer;
+  }
+  .add-project-item:active { background: var(--surface-alt); }
+  .add-project-item:disabled { opacity: .5; }
+  .add-project-item .project-name { font-size: 13.5px; }
+  .add-project-item .project-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -489,6 +544,21 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Picker "+ Thêm dự án" (Tab Gửi báo cáo, 2026-07-20) — ẩn mặc định, mở qua openAddProjectPicker() -->
+  <div class="add-project-overlay" id="add-project-overlay">
+    <div class="add-project-sheet">
+      <div class="add-project-sheet-head">
+        <div class="add-project-sheet-title">Thêm dự án</div>
+        <button type="button" class="add-project-close-btn" id="add-project-close-btn" aria-label="Đóng">&#10005;</button>
+      </div>
+      <div class="search-input-wrap add-project-search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+        <input id="add-project-search-input" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+      </div>
+      <div id="add-project-list"></div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Nút chỉnh cỡ chữ +/- — CHỈ có ở bản app này (không có ở bản xem qua trình duyệt gốc), vì
@@ -549,6 +619,12 @@
   var submitRequestId = 0; // Cùng cơ chế chống race với openRequestId nhưng tách riêng vì đây là luồng độc lập
   var submitInFlight = false; // Chốt chặn không cho gửi chồng lần 2 khi lần trước chưa xong (xem doSubmitReports)
 
+  // THÊM DỰ ÁN (2026-07-20) — xem nhóm hàm cuối phần Gửi báo cáo.
+  var addProjectListResp = null; // Kết quả webviewGetProjectListForAdd, preload NGẦM sau khi Tab Gửi báo cáo tải xong
+  var addProjectPreloadTimer = null;
+  var sessionAddedIds = {}; // "Mã dự án" -> true — CHỈ các dự án vừa thêm trong phiên này mới được phép xóa lại
+  var addProjectInFlight = false;
+
   // ---- Trạng thái riêng cho Tab ƯU TIÊN (role "btgd") ----
   var priorityMapResp = null; // Kết quả webviewGetPriorityList ({ok, map: "Mã dự án"->"1".."5"})
   var pendingPriority = {};   // Bản nháp ở client, khởi tạo = sao chép priorityMapResp.map lúc tải
@@ -581,7 +657,11 @@
   // webviewSetPriority — payload có thể khá dài) dùng Content-Type: text/plain để tránh CORS
   // preflight (Apps Script không tự xử lý được request OPTIONS, xem doPost ở Code.js).
   var API_BASE = 'https://script.google.com/macros/s/AKfycbyMUgkfpMN3DNvty64pQ6ZA7U4AMnPN0ScjIi0oLjOr45PA4XD7ctakN10w2IR2e0pm8g/exec';
-  var POST_ACTIONS = { webviewSubmitReports: true, webviewSetPriority: true };
+  // webviewAddProject/webviewDeleteAddedProject (2026-07-20) cũng là lệnh ghi dữ liệu (thêm/xóa
+  // dòng NHAPBC) — phải nằm trong POST_ACTIONS như webviewSubmitReports/webviewSetPriority, nếu
+  // không mật khẩu bộ phận + tên/mã dự án sẽ lọt vào URL (query string), lộ trong execution log/
+  // lịch sử trình duyệt — đúng lỗ hổng Reviewer phát hiện 2026-07-20.
+  var POST_ACTIONS = { webviewSubmitReports: true, webviewSetPriority: true, webviewAddProject: true, webviewDeleteAddedProject: true };
   function callServer(action, args) {
     var isPost = !!POST_ACTIONS[action];
     var url = isPost ? API_BASE : (API_BASE + '?action=' + encodeURIComponent(action) + '&args=' + encodeURIComponent(JSON.stringify(args || [])));
@@ -921,6 +1001,11 @@
   $('tab-btn-danhsachda').addEventListener('click', function () { switchTab('danhsachda'); });
   $('search-input-submit').addEventListener('input', renderSubmitFiltered);
   $('submit-send-btn').addEventListener('click', doSubmitReports);
+  $('add-project-close-btn').addEventListener('click', closeAddProjectPicker);
+  $('add-project-search-input').addEventListener('input', renderAddProjectPickerList);
+  // Bấm vào nền tối (ngoài sheet) để đóng, giống bottom-sheet chuẩn — không đóng khi bấm bên
+  // trong sheet (kiểm tra e.target === chính overlay, không phải phần tử con nào đó nổi bọt lên).
+  $('add-project-overlay').addEventListener('click', function (e) { if (e.target.id === 'add-project-overlay') closeAddProjectPicker(); });
   $('search-input-priority').addEventListener('input', renderPriorityFiltered);
   $('priority-save-btn').addEventListener('click', doSavePriority);
   $('search-input-danhsachda').addEventListener('input', renderDanhSachDaFiltered);
@@ -1519,11 +1604,26 @@
         }
         submitProjectsResp = res;
         renderSubmitFiltered();
+        // Preload NGẦM danh sách dự án gốc cho picker "+ Thêm dự án" — trì hoãn 1.5s để không
+        // tranh chấp mạng/CPU với việc render Tab Gửi báo cáo vừa xong (user yêu cầu 2026-07-20:
+        // "load trước, sau khi load thành công tab Gửi báo cáo, cách ra một thời gian cho khỏi
+        // nghẽn"). Nhờ vậy lúc người dùng bấm nút "+" thường đã có sẵn dữ liệu, không phải chờ.
+        if (addProjectPreloadTimer) clearTimeout(addProjectPreloadTimer);
+        addProjectPreloadTimer = setTimeout(preloadAddProjectList, 1500);
       })
       .catch(function (err) {
         if (myRequestId !== submitRequestId) return;
         $('submit-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
       });
+  }
+
+  // Tải ngầm, không hiện lỗi ra UI nếu thất bại — vẫn còn cơ chế tải-khi-cần trong
+  // openAddProjectPicker() nếu preload chưa xong/thất bại lúc người dùng bấm nút "+".
+  function preloadAddProjectList() {
+    if (addProjectListResp && addProjectListResp.ok) return; // đã có sẵn rồi, không tải lại
+    callServer('webviewGetProjectListForAdd', [currentDeptCode, currentPassword])
+      .then(function (res) { addProjectListResp = res; })
+      .catch(function () { /* im lặng — thử lại khi người dùng thực sự bấm nút "+" */ });
   }
 
   function renderSubmitFiltered() {
@@ -1536,9 +1636,15 @@
       if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
       shown++;
       var isDirty = !!pendingEdits[p.id];
+      // Nút xóa CHỈ hiện cho dự án thêm trong phiên này (sessionAddedIds) — dự án load trực tiếp
+      // từ NHAPBC lúc mở tab không có nút này (user yêu cầu 2026-07-20: "chỉ có thể xóa các dự án
+      // đã thêm trong phiên làm việc đó").
+      var canDelete = !!sessionAddedIds[p.id];
       html += '<div class="edit-card' + (isDirty ? ' dirty' : '') + '" data-project="' + escapeHtml(p.id) + '">' +
         '<div class="edit-card-head"><div class="project-name">' + escapeHtml(p.name) + '</div>' +
-        (isDirty ? '<span class="dirty-badge">Đã sửa</span>' : '') + '</div>' +
+        (isDirty ? '<span class="dirty-badge">Đã sửa</span>' : '') +
+        (canDelete ? '<button type="button" class="remove-added-btn" data-project="' + escapeHtml(p.id) + '" title="Xóa dự án vừa thêm">&#10005;</button>' : '') +
+        '</div>' +
         '<div class="project-sub" style="margin-bottom:6px;">' + escapeHtml(p.id) + '</div>';
       for (var f = 0; f < submitProjectsResp.fields.length; f++) {
         var field = submitProjectsResp.fields[f];
@@ -1570,7 +1676,12 @@
       }
       html += '</div>';
     }
-    $('submit-content').innerHTML = shown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    var listHtml = shown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    // Nút "+ Thêm dự án" LUÔN hiện ở cuối cùng, kể cả khi đang tìm kiếm không ra kết quả — đây là
+    // nút hành động, không phải 1 dự án để lọc theo ô tìm kiếm (user yêu cầu 2026-07-20).
+    listHtml += '<button type="button" id="add-project-btn" class="add-project-btn">' +
+      '<span class="add-project-btn-icon">+</span> Thêm dự án</button>';
+    $('submit-content').innerHTML = listHtml;
     var inputs = document.querySelectorAll('#submit-content textarea.edit-input');
     for (var k = 0; k < inputs.length; k++) {
       inputs[k].addEventListener('input', onEditFieldChange);
@@ -1580,9 +1691,13 @@
     for (var c = 0; c < chips.length; c++) chips[c].addEventListener('click', onEditFieldChange);
     var bools = document.querySelectorAll('#submit-content .bool-input');
     for (var b = 0; b < bools.length; b++) bools[b].addEventListener('change', onEditFieldChange);
+    var removeBtns = document.querySelectorAll('#submit-content .remove-added-btn');
+    for (var rb = 0; rb < removeBtns.length; rb++) removeBtns[rb].addEventListener('click', onRemoveAddedProjectClick);
+    var addBtn = $('add-project-btn');
+    if (addBtn) addBtn.addEventListener('click', openAddProjectPicker);
     // Giữ nguyên trạng thái khóa (nếu đang có 1 lượt gửi chạy dở) khi render lại danh sách — ví
     // dụ người dùng gõ tìm kiếm trong lúc đang chờ server phản hồi.
-    if (submitInFlight) setSubmitFieldsDisabled_(true);
+    if (submitInFlight) { setSubmitFieldsDisabled_(true); if (addBtn) addBtn.disabled = true; }
   }
 
   function onEditFieldChange(e) {
@@ -1644,8 +1759,121 @@
   // để còn gọi lại được từ renderSubmitFiltered() (giữ trạng thái khóa xuyên suốt kể cả khi người
   // dùng gõ tìm kiếm làm render lại danh sách trong lúc đang chờ server).
   function setSubmitFieldsDisabled_(disabled) {
-    var els = document.querySelectorAll('#submit-content textarea.edit-input, #submit-content .priority-chip, #submit-content .bool-input');
+    var els = document.querySelectorAll('#submit-content textarea.edit-input, #submit-content .priority-chip, #submit-content .bool-input, #submit-content .remove-added-btn, #add-project-btn');
     for (var i = 0; i < els.length; i++) els[i].disabled = disabled;
+  }
+
+  // =========================================================================
+  // THÊM / XÓA DỰ ÁN (Tab Gửi báo cáo, 2026-07-20) — xem Code.js webviewGetProjectListForAdd/
+  // webviewAddProject/webviewDeleteAddedProject.
+  // =========================================================================
+
+  function openAddProjectPicker() {
+    $('add-project-overlay').classList.add('open');
+    $('add-project-search-input').value = '';
+    if (addProjectListResp && addProjectListResp.ok) {
+      renderAddProjectPickerList();
+    } else {
+      // Chưa preload xong (mở tab quá nhanh) hoặc preload lỗi -> tải luôn lúc này, hiện skeleton.
+      $('add-project-list').innerHTML = '<div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>';
+      callServer('webviewGetProjectListForAdd', [currentDeptCode, currentPassword])
+        .then(function (res) {
+          addProjectListResp = res;
+          if (!$('add-project-overlay').classList.contains('open')) return; // Đã đóng picker trước khi tải xong
+          if (!res.ok) { $('add-project-list').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(res.error || 'Lỗi tải danh sách.') + '</div>'; return; }
+          renderAddProjectPickerList();
+        })
+        .catch(function (err) {
+          if (!$('add-project-overlay').classList.contains('open')) return;
+          $('add-project-list').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>Lỗi kết nối: ' + escapeHtml(err.message) + '</div>';
+        });
+    }
+    $('add-project-search-input').focus();
+  }
+
+  function closeAddProjectPicker() {
+    $('add-project-overlay').classList.remove('open');
+  }
+
+  function renderAddProjectPickerList() {
+    if (!addProjectListResp || !addProjectListResp.ok) return;
+    var q = $('add-project-search-input').value.trim().toLowerCase();
+    // Loại bỏ dự án ĐÃ có trong NHAPBC hiện tại (kể cả vừa thêm trong phiên này) — không cho chọn
+    // trùng, tránh phải gọi lại server để lọc mỗi lần mở picker.
+    var existingIds = {};
+    if (submitProjectsResp && submitProjectsResp.ok) {
+      submitProjectsResp.projects.forEach(function (p) { existingIds[p.id] = true; });
+    }
+    var html = '';
+    var shown = 0;
+    for (var i = 0; i < addProjectListResp.projects.length; i++) {
+      var p = addProjectListResp.projects[i];
+      if (existingIds[p.id]) continue;
+      if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
+      shown++;
+      html += '<button type="button" class="add-project-item" data-project-name="' + escapeHtml(p.name) + '">' +
+        '<div class="project-name">' + escapeHtml(p.name) + '</div>' +
+        '<div class="project-sub">' + escapeHtml(p.id) + '</div></button>';
+    }
+    $('add-project-list').innerHTML = shown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không còn dự án phù hợp (đã có trong danh sách hoặc không khớp tìm kiếm).</div>';
+    var items = document.querySelectorAll('#add-project-list .add-project-item');
+    for (var k = 0; k < items.length; k++) items[k].addEventListener('click', onSelectAddProject);
+  }
+
+  function onSelectAddProject(e) {
+    if (addProjectInFlight) return;
+    var projectName = e.currentTarget.getAttribute('data-project-name');
+    addProjectInFlight = true;
+    var items = document.querySelectorAll('#add-project-list .add-project-item');
+    for (var i = 0; i < items.length; i++) items[i].disabled = true;
+    callServer('webviewAddProject', [currentDeptCode, currentPassword, projectName])
+      .then(function (res) {
+        addProjectInFlight = false;
+        if (!res.ok) {
+          showToast(res.error || 'Thêm dự án thất bại.', true);
+          var itemsRetry = document.querySelectorAll('#add-project-list .add-project-item');
+          for (var j = 0; j < itemsRetry.length; j++) itemsRetry[j].disabled = false;
+          return;
+        }
+        if (!submitProjectsResp || !submitProjectsResp.ok) return; // Đã đăng xuất trong lúc chờ
+        submitProjectsResp.projects.push({ id: res.id, name: res.name, values: res.values || {} });
+        sessionAddedIds[res.id] = true;
+        closeAddProjectPicker();
+        renderSubmitFiltered();
+        updateSubmitBar();
+        showToast('Đã thêm "' + res.name + '" — điền báo cáo rồi bấm "Gửi báo cáo" như bình thường.');
+      })
+      .catch(function (err) {
+        addProjectInFlight = false;
+        showToast('Lỗi kết nối: ' + err.message, true);
+        var itemsErr = document.querySelectorAll('#add-project-list .add-project-item');
+        for (var m = 0; m < itemsErr.length; m++) itemsErr[m].disabled = false;
+      });
+  }
+
+  function onRemoveAddedProjectClick(e) {
+    e.stopPropagation();
+    if (addProjectInFlight) return;
+    var projectId = e.currentTarget.getAttribute('data-project');
+    addProjectInFlight = true;
+    var btn = e.currentTarget;
+    btn.disabled = true;
+    callServer('webviewDeleteAddedProject', [currentDeptCode, currentPassword, projectId])
+      .then(function (res) {
+        addProjectInFlight = false;
+        if (!res.ok) { showToast(res.error || 'Xóa dự án thất bại.', true); btn.disabled = false; return; }
+        if (!submitProjectsResp || !submitProjectsResp.ok) return;
+        submitProjectsResp.projects = submitProjectsResp.projects.filter(function (p) { return p.id !== projectId; });
+        delete sessionAddedIds[projectId];
+        delete pendingEdits[projectId];
+        renderSubmitFiltered();
+        updateSubmitBar();
+      })
+      .catch(function (err) {
+        addProjectInFlight = false;
+        showToast('Lỗi kết nối: ' + err.message, true);
+        btn.disabled = false;
+      });
   }
 
   function doSubmitReports() {
@@ -1705,6 +1933,10 @@
           }
         });
         pendingEdits = {};
+        // Sau khi gửi báo cáo thành công, KHÔNG cho xóa bất kỳ dự án nào nữa — kể cả dự án vừa
+        // thêm trong phiên này — vì dữ liệu báo cáo đã ghi thật vào NHAPBC (user yêu cầu
+        // 2026-07-20). Xóa sessionAddedIds để nút xóa (remove-added-btn) biến mất ở lần render kế.
+        sessionAddedIds = {};
         renderSubmitFiltered();
         updateSubmitBar();
         // Không báo toast "thành công" lần nữa — đã báo ngay lúc bấm gửi ở trên rồi, chỉ báo LỖI
@@ -2078,6 +2310,8 @@
     overviewResp = null; deptListResp = null; deptMapResp = null; deptDetailData = null;
     mainEntered = false;
     submitProjectsResp = null; pendingEdits = {}; submitInFlight = false;
+    addProjectListResp = null; sessionAddedIds = {}; addProjectInFlight = false;
+    if (addProjectPreloadTimer) { clearTimeout(addProjectPreloadTimer); addProjectPreloadTimer = null; }
     priorityMapResp = null; pendingPriority = {}; priorityInFlight = false;
     tkbcResp = null; tkbcNeedsRefresh = false;
     projectListResp = null; projectListNeedsRefresh = false;
