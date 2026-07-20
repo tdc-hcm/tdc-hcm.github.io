@@ -3,12 +3,12 @@
 // mạng, bỏ qua cache hoàn toàn) — tránh rủi ro hiện dữ liệu báo cáo CŨ mà tưởng là mới. Cache
 // app-shell giúp mở lại gần như tức thời (đúng yêu cầu "trải nghiệm như app thông thường") + vẫn
 // thấy được giao diện (dù chưa tải được dữ liệu) khi mất mạng tạm thời.
-var CACHE_NAME = 'bc-tdc-shell-v8'; // v7 -> v8 (2026-07-20) — ẩn trường theo CONFIG_SETTINGS,
-                                     // sửa thứ tự trường theo đúng cột NHAPBC, giảm chiều cao
-                                     // mặc định + tăng chiều cao tối đa ô nhập liệu trong index.html.
-                                     // Bump version để ép tải lại shell ngay lần mở đầu tiên sau
-                                     // deploy, không phải đợi 2 lần mở (cơ chế stale-while-revalidate
-                                     // ở dưới vẫn tự cập nhật được, nhưng bump cho chắc + nhanh hơn).
+var CACHE_NAME = 'bc-tdc-shell-v9'; // v8 -> v9 (2026-07-20) — đổi cơ chế tìm kiếm sang kiểu Ctrl+F
+                                     // (tô sáng thay vì ẩn/hiện dự án) + back 2 lần mới thoát app.
+                                     // Bump version để ép trình duyệt coi service worker là "đã đổi"
+                                     // và cài lại toàn bộ cache app-shell, thay vì tự cập nhật dần
+                                     // qua 2 lần mở (cơ chế stale-while-revalidate) — người dùng báo
+                                     // 2026-07-20: đã push GitHub Pages nhưng mở app không thấy đổi.
 var SHELL_FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', function (event) {
