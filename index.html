@@ -171,29 +171,47 @@
      trong luồng trang sang nổi cố định. Vì ancestor .tab-panel/#dept-detail-area vẫn display:none
      khi không active, tại 1 thời điểm chỉ có tối đa 1 ô đang thực sự hiện trên màn hình. */
   .search-bar {
-    position: fixed; top: 76px; right: 66px; z-index: 29; height: 42px;
+    /* Cao hơn bản trước (42px -> 52px, top 76px -> 71px để giữ tâm ngang hàng với nút tròn 42px
+       bên cạnh) — cần chỗ cho 2 nút lên/xuống 48px vừa tăng gấp đôi kích thước (user yêu cầu
+       2026-07-20). */
+    position: fixed; top: 71px; right: 66px; z-index: 29; height: 52px;
     width: 0; opacity: 0; pointer-events: none; overflow: hidden;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 21px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 26px;
     box-shadow: var(--shadow); transition: width .2s ease, opacity .15s ease;
   }
-  /* Rộng hơn bản trước (300px -> 360px) để chứa thêm bộ đếm "x/y" + 2 nút lên/xuống, kiểu thanh
-     tìm kiếm Ctrl+F của Chrome (user yêu cầu 2026-07-20). */
-  .search-bar.open { width: min(88vw, 360px); opacity: 1; pointer-events: auto; }
+  /* Rộng hơn bản trước (300px -> 400px, tăng thêm lần nữa vì nút lên/xuống to gấp đôi — user yêu
+     cầu 2026-07-20) để chứa thêm bộ đếm "x/y" + 2 nút lên/xuống, kiểu thanh tìm kiếm Ctrl+F của
+     Chrome. */
+  .search-bar.open { width: min(92vw, 400px); opacity: 1; pointer-events: auto; }
   .search-input-wrap { position: relative; display: flex; align-items: center; height: 100%; }
   .search-input-wrap svg.search-icon { position: absolute; left: 14px; opacity: .5; pointer-events: none; color: var(--text-muted); }
   .search-input-wrap input {
     padding: 0 4px 0 36px; margin-bottom: 0; height: 100%; flex: 1 1 auto; min-width: 0;
-    border: none; border-radius: 21px 0 0 21px; background: transparent;
+    border: none; border-radius: 26px 0 0 26px; background: transparent;
   }
+  /* (2026-07-20) Input này LUÔN tự focus ngay khi mở (openSearchOverlay_ gọi .focus()) — rule
+     chung ":focus-visible { outline: 2px solid ... }" ở trên vẽ viền quanh CẢ 4 cạnh input, nhưng
+     .search-bar có overflow:hidden nên chỉ cạnh PHẢI (giáp .search-nav) còn hiện ra được, trông
+     như "1 thanh đứng màu xanh đậm ở cuối ô nhập liệu" — đúng lỗi user chụp màn hình phản ánh
+     2026-07-20. Bản thân .search-bar.open đã có viền + đổi màu nút tròn để báo hiệu đang mở, không
+     cần thêm viền focus nữa. */
+  /* :not(.add-project-search-wrap) — class .search-input-wrap CÒN được picker "+ Thêm dự án"
+     dùng lại (ô tìm kiếm KHÁC, không tự focus + không nằm trong khung overflow:hidden khít cạnh
+     nên không hề bị lỗi viền cắt như 5 ô tìm kiếm chính) — nếu tắt outline chung cho cả
+     .search-input-wrap sẽ vô tình xóa luôn dấu hiệu tiêu điểm duy nhất của ô đó (lỗi Reviewer
+     phát hiện 2026-07-20). */
+  .search-input-wrap:not(.add-project-search-wrap) input:focus-visible { outline: none; }
   /* Bộ đếm "x/y" + nút lên/xuống chuyển kết quả — nằm bên phải ô nhập, cùng 1 hàng (giống thanh
      tìm kiếm Ctrl+F của Chrome trên desktop). */
-  .search-nav { display: flex; align-items: center; flex-shrink: 0; padding-right: 4px; }
+  .search-nav { display: flex; align-items: center; flex-shrink: 0; padding-right: 2px; }
   .search-match-count {
     font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
-    padding: 0 4px; white-space: nowrap; min-width: 28px; text-align: center;
+    padding: 0 3px; white-space: nowrap; min-width: 26px; text-align: center;
   }
+  /* To gấp đôi (24px -> 48px, svg 13px -> 22px) theo yêu cầu user 2026-07-20 — quá nhỏ khó bấm
+     trên điện thoại. */
   .search-nav-btn {
-    width: 24px; height: 24px; border: none; background: transparent; color: var(--text-muted);
+    width: 48px; height: 48px; border: none; background: transparent; color: var(--text-muted);
     cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%;
     flex-shrink: 0;
   }
@@ -494,8 +512,8 @@
           <input id="search-input-projects" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
           <div class="search-nav">
             <span class="search-match-count" id="search-count-projects"></span>
-            <button type="button" class="search-nav-btn" id="search-prev-projects" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
-            <button type="button" class="search-nav-btn" id="search-next-projects" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+            <button type="button" class="search-nav-btn" id="search-prev-projects" aria-label="Kết quả trước" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+            <button type="button" class="search-nav-btn" id="search-next-projects" aria-label="Kết quả tiếp theo" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
           </div>
         </div>
       </div>
@@ -514,8 +532,8 @@
             <input id="search-input-dept" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
             <div class="search-nav">
               <span class="search-match-count" id="search-count-dept"></span>
-              <button type="button" class="search-nav-btn" id="search-prev-dept" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
-              <button type="button" class="search-nav-btn" id="search-next-dept" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-prev-dept" aria-label="Kết quả trước" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-next-dept" aria-label="Kết quả tiếp theo" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
             </div>
           </div>
         </div>
@@ -532,8 +550,8 @@
             <input id="search-input-submit" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
             <div class="search-nav">
               <span class="search-match-count" id="search-count-submit"></span>
-              <button type="button" class="search-nav-btn" id="search-prev-submit" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
-              <button type="button" class="search-nav-btn" id="search-next-submit" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-prev-submit" aria-label="Kết quả trước" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-next-submit" aria-label="Kết quả tiếp theo" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
             </div>
           </div>
         </div>
@@ -553,8 +571,8 @@
             <input id="search-input-priority" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
             <div class="search-nav">
               <span class="search-match-count" id="search-count-priority"></span>
-              <button type="button" class="search-nav-btn" id="search-prev-priority" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
-              <button type="button" class="search-nav-btn" id="search-next-priority" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-prev-priority" aria-label="Kết quả trước" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-next-priority" aria-label="Kết quả tiếp theo" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
             </div>
           </div>
         </div>
@@ -576,8 +594,8 @@
           <input id="search-input-danhsachda" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
           <div class="search-nav">
             <span class="search-match-count" id="search-count-danhsachda"></span>
-            <button type="button" class="search-nav-btn" id="search-prev-danhsachda" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
-            <button type="button" class="search-nav-btn" id="search-next-danhsachda" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+            <button type="button" class="search-nav-btn" id="search-prev-danhsachda" aria-label="Kết quả trước" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+            <button type="button" class="search-nav-btn" id="search-next-danhsachda" aria-label="Kết quả tiếp theo" disabled><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
           </div>
         </div>
       </div>
@@ -1034,7 +1052,7 @@
       searchHistoryPushed = false; // Chỉ đồng bộ lại cờ — mốc đã bị chính popstate này tiêu thụ rồi
     } else if (clear && searchHistoryPushed) {
       searchHistoryPushed = false;
-      history.back(); // Tiêu thụ mốc đã đẩy lúc mở — tránh sót lại 1 mốc vô nghĩa
+      programmaticHistoryBack_(); // Tiêu thụ mốc đã đẩy lúc mở — tránh sót lại 1 mốc vô nghĩa
     }
     if (clear) {
       var id = getActiveSearchInputId_();
@@ -1335,7 +1353,13 @@
       (restoreTab === 'priority' && currentRole === 'btgd') ||
       (restoreTab === 'tkbc' && currentCanViewTKBC) ||
       (restoreTab === 'danhsachda' && currentCanViewProjectList);
-    switchTab(restoreAllowed ? restoreTab : 'projects');
+    // fromHistory=true: đây là tab MỞ ĐẦU sau đăng nhập, không phải 1 lượt "chuyển" thật để nhớ lại
+    // khi back — nếu không, trên thiết bị dùng chung, currentTab CŨ (sót từ phiên user/vai trò
+    // TRƯỚC, chưa từng bị reset) có thể khác với tab mở đầu của phiên MỚI này, vô tình bị đẩy vào
+    // tabHistoryStack; do switchTab() không tự kiểm tra quyền vai trò (chỉ ẩn nút bấm), 1 lần back
+    // sau đó có thể vô tình mở lại đúng tab của VAI TRÒ CŨ mà vai trò hiện tại không được xem (lỗi
+    // Reviewer phát hiện 2026-07-20).
+    switchTab(restoreAllowed ? restoreTab : 'projects', true);
     // Nạp dữ liệu của MỌI tab người dùng có quyền xem ngay khi vào app — hạn chế phải chờ khi
     // chuyển tab sau này (user yêu cầu 2026-07-19). Thứ tự ưu tiên: Dự án (đã nạp ở trên) -> Gửi
     // báo cáo/Ưu tiên -> Thống kê BC -> Danh sách DA. GIÃN CÁCH bằng setTimeout thay vì gọi dồn
@@ -1349,7 +1373,18 @@
     if (currentCanViewProjectList) setTimeout(showDanhSachDaTab, 900);
   }
 
-  function switchTab(tab) {
+  // fromHistory=true: hàm này đang được gọi để QUAY LẠI 1 tab trước đó (do popstate xử lý
+  // tabHistoryStack) — KHÔNG đẩy thêm mốc lịch sử mới cho lượt quay lại này (nếu không, back xong
+  // 1 tab lại tự đẩy 1 mốc mới, biến back thành vô tác dụng — cứ back là lại có cái để back tiếp
+  // đúng chỗ vừa rời). Mặc định (bấm tay vào 1 nút tab): đẩy mốc lịch sử ghi nhớ tab ĐANG RỜI, để
+  // back quay lại đúng tab đó (user yêu cầu 2026-07-20: "chuyển từ tab Dự án sang tab Thống kê BC,
+  // nhấn back thì giao diện phải chuyển về tab Dự án").
+  function switchTab(tab, fromHistory) {
+    var fromTab = currentTab;
+    if (!fromHistory && fromTab !== tab) {
+      tabHistoryStack.push(fromTab);
+      history.pushState({ view: 'tab' }, '');
+    }
     openRequestId++; // Vô hiệu hóa mọi callback openDepartmentDetail đang chờ dữ liệu — tránh nó
                       // ghi đè topbar-sub/nội dung của tab vừa chuyển sang (đã xảy ra thật khi
                       // rời màn hình chi tiết bộ phận trước khi dữ liệu kịp sẵn sàng).
@@ -1722,6 +1757,29 @@
   // (không đi qua hàm này).
   var deptDetailHistoryPushed = false;
 
+  // (2026-07-20) Đếm số lượng history.back() do CHÍNH TA gọi bằng code (đóng tìm kiếm/chi tiết bộ
+  // phận qua nút bấm trên màn hình — KHÔNG phải người dùng tự bấm back/vuốt lùi thật). popstate
+  // sinh ra từ các lệnh back() này phải được BỎ QUA HOÀN TOÀN, không suy luận lại theo cờ/trạng
+  // thái DOM, vì phần đóng UI + cập nhật cờ đã làm xong ĐỒNG BỘ ngay lúc gọi rồi. Thiếu cơ chế này
+  // sẽ khiến việc đóng tìm kiếm/chi tiết bộ phận BẰNG TAY (không phải back thật) bị hiểu lầm thành
+  // "back thật ở tầng gốc", hiện nhầm toast "Nhấn back lần nữa để thoát" (lỗi user phản ánh
+  // 2026-07-20 — cùng lúc phát hiện đây cũng là lỗi tiềm ẩn từ trước ở nút "←" chi tiết bộ phận,
+  // chỉ là chưa lộ ra vì trước đó chưa có toast nào để hiện nhầm).
+  var pendingProgrammaticBack = 0;
+  function programmaticHistoryBack_() {
+    pendingProgrammaticBack++;
+    history.back();
+  }
+
+  // (2026-07-20) Nhớ tab đã xem TRƯỚC khi chuyển sang tab hiện tại — bấm back sẽ quay lại đúng tab
+  // đó (nhiều tầng, giống ngăn xếp lịch sử trình duyệt thật) thay vì thoát thẳng/nhảy về tầng gốc.
+  // Mỗi lần chuyển tab THẬT (tap tay hoặc quay lại từ lịch sử) đều dùng ĐÚNG 1 hàm switchTab() — vì
+  // vậy animation/hành vi hiển thị GIỐNG Y HỆT bấm tay, không cần thêm hiệu ứng riêng cho trường
+  // hợp back (user yêu cầu 2026-07-20: "animation chuyển tab... giống với thao tác lấy tay chạm
+  // vào tab" — bản thân switchTab() hiện KHÔNG có animation trượt nào, chỉ đổi display block/none
+  // tức thời, nên tái dùng nguyên hàm này cho back là cách chắc chắn nhất để đảm bảo giống nhau).
+  var tabHistoryStack = [];
+
   // (2026-07-20) "Chạm back lần nữa để thoát" — thay vì để back/vuốt lùi thoát thẳng app ngay lần
   // đầu (user phản ánh: "trong khi sử dụng rất nhiều người thoát nhầm", phải đăng nhập lại mỗi lần
   // lỡ tay). Đẩy 1 mốc lịch sử "gốc" ngay sau khi vào màn hình chính — LUÔN có gì đó cho back tiêu
@@ -1733,14 +1791,37 @@
 
   function pushRootHistoryIfNeeded_() {
     if (rootHistoryPushed) return;
+    // KHÔNG đẩy mốc "gốc" nếu đang có tầng nào khác (tìm kiếm/chi tiết bộ phận/tab) NẰM TRÊN —
+    // nếu không sẽ chèn mốc gốc LẠC VỊ TRÍ (phía trên mốc của tầng đang mở), phá đúng thứ tự ngăn
+    // xếp "đóng tầng trong cùng trước". Có thể xảy ra thật: người dùng mở tìm kiếm/chi tiết bộ
+    // phận NGAY TRONG lúc đang chờ 2 giây xác nhận thoát (rootHistoryPushed=false tạm thời) —
+    // visibilitychange/setTimeout re-arm ở dưới có thể chạy đúng lúc đó (lỗi Reviewer phát hiện
+    // 2026-07-20). Khi có tầng khác đang mở, không cần bảo vệ gốc — tầng đó tự có mốc riêng, gốc
+    // sẽ được đẩy lại đúng lúc SAU khi tầng đó đóng hết (popstate rơi tới nhánh gốc mới gọi hàm này).
+    if (searchHistoryPushed || deptDetailHistoryPushed || tabHistoryStack.length > 0) return;
     history.pushState({ view: 'root' }, '');
     rootHistoryPushed = true;
   }
 
+  // (2026-07-20) Lưới an toàn phòng trường hợp setTimeout re-arm ở dưới bị trình duyệt trì hoãn/bỏ
+  // qua khi app bị đưa xuống nền (khoá màn hình, chuyển app khác...) đúng lúc đang chờ hết 2 giây —
+  // timer nền không được đảm bảo chạy đúng giờ khi trang không hiển thị. Mỗi lần app hiển thị trở
+  // lại, kiểm tra ngay và đẩy lại mốc bảo vệ nếu vì lý do gì đó đang bị thiếu (user phản ánh
+  // 2026-07-20: đợi 10s rồi vuốt 1 lần bị thoát thẳng, đúng dấu hiệu mốc bảo vệ chưa được đẩy lại
+  // kịp).
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') pushRootHistoryIfNeeded_();
+  });
+
   // Thứ tự kiểm tra QUAN TRỌNG — phải khớp đúng thứ tự các tầng đã pushState (tầng mở SAU cùng
-  // phải đóng TRƯỚC, kiểu ngăn xếp): tìm kiếm (có thể mở TRÊN CÙNG bất kỳ tab/màn hình nào, kể cả
-  // chi tiết bộ phận) -> chi tiết bộ phận -> cuối cùng mới tới mốc "gốc" (double-back-to-exit).
+  // phải đóng TRƯỚC, kiểu ngăn xếp): mốc do code TỰ tiêu thụ (bỏ qua hẳn) -> tìm kiếm (có thể mở
+  // TRÊN CÙNG bất kỳ tab/màn hình nào, kể cả chi tiết bộ phận) -> chi tiết bộ phận -> tab trước đó
+  // -> cuối cùng mới tới mốc "gốc" (double-back-to-exit).
   window.addEventListener('popstate', function () {
+    if (pendingProgrammaticBack > 0) {
+      pendingProgrammaticBack--;
+      return;
+    }
     if (searchHistoryPushed) {
       searchHistoryPushed = false;
       if (searchOverlayOpen) closeSearchOverlay_(true, true);
@@ -1749,6 +1830,11 @@
     if (deptDetailHistoryPushed && $('dept-detail-area').style.display !== 'none') {
       deptDetailHistoryPushed = false;
       resetDeptDetailView_();
+      return;
+    }
+    if (tabHistoryStack.length > 0) {
+      var prevTab = tabHistoryStack.pop();
+      switchTab(prevTab, true); // fromHistory=true -> không đẩy thêm mốc mới cho lượt quay lại này
       return;
     }
     // Không còn tầng JS nào đang mở -> mốc "gốc" vừa bị tiêu thụ -> người dùng đang thật sự cố
@@ -1794,7 +1880,7 @@
     if (fromBackButton && searchOverlayOpen) { closeSearchOverlay_(true); return; }
     if (deptDetailHistoryPushed) {
       deptDetailHistoryPushed = false;
-      history.back(); // Tiêu thụ mốc lịch sử đã đẩy lúc mở chi tiết — tránh còn sót lại khiến lần bấm back TIẾP THEO (ở màn hình khác) bị "kẹt" 1 nhịp vô nghĩa
+      programmaticHistoryBack_(); // Tiêu thụ mốc lịch sử đã đẩy lúc mở chi tiết — tránh còn sót lại khiến lần bấm back TIẾP THEO (ở màn hình khác) bị "kẹt" 1 nhịp vô nghĩa
     }
     resetDeptDetailView_();
   }
@@ -2563,6 +2649,8 @@
     // 2026-07-20, cùng loại với deptDetailHistoryPushed ở trên).
     searchHistoryPushed = false;
     if (rootExitRearmTimer) { clearTimeout(rootExitRearmTimer); rootExitRearmTimer = null; }
+    tabHistoryStack = []; // Cùng lý do — mảng tab đã rời của phiên TRƯỚC không còn ý nghĩa gì sau khi đăng xuất
+    pendingProgrammaticBack = 0;
     currentDeptDetailCode = null;
     // Xóa luôn cache localStorage (không chỉ biến trong bộ nhớ) — phòng trường hợp thiết bị dùng
     // chung, người khác đăng nhập vai trò khác ngay sau đó không bị hydrate nhầm dữ liệu vai trò cũ.
