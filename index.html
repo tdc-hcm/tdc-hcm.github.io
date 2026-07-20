@@ -260,7 +260,10 @@
   .bool-label input.bool-input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); margin: 0; }
   .bool-label span { font-size: 13px; font-weight: 700; color: var(--accent); }
   textarea.edit-input {
-    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; line-height: 1.45;
+    /* Padding dọc giảm còn 3px (từ 10px) — user 2026-07-20: nhiều trường để trống nhưng ô vẫn
+       chiếm nhiều không gian dọc, muốn hiện được nhiều dự án hơn trên màn hình. Giữ padding
+       ngang 10px để không đổi cảm giác căn lề trái/phải. */
+    width: 100%; padding: 3px 10px; border: 1px solid var(--border); border-radius: 8px; line-height: 1.45;
     background: var(--surface-alt); color: var(--text); font-size: 13.5px; font-family: inherit; resize: none;
     overflow-y: hidden; box-sizing: border-box;
   }
@@ -801,16 +804,18 @@
     }
   }
 
-  // Tự giãn/co chiều cao textarea theo đúng nội dung — tối thiểu 1 dòng, tối đa 8 dòng (quá 8
+  // Tự giãn/co chiều cao textarea theo đúng nội dung — tối thiểu 1 dòng, tối đa 10 dòng (quá 10
   // dòng thì cuộn bên trong ô thay vì giãn vô hạn) — user yêu cầu 2026-07-19: ô "Báo cáo KH" có
   // nội dung dài hiện quá bé so với chữ, mọi ô lại mặc định cao bằng nhau bất kể nội dung.
+  // (2026-07-20: nâng trần từ 8 lên 10 dòng — padding đã giảm ở CSS .edit-input nên ô rỗng/ngắn
+  // giờ thấp hơn nhiều, bù lại cho phép ô có nội dung dài giãn cao hơn trước khi phải cuộn.)
   function autoResizeTextarea(el) {
     var cs = window.getComputedStyle(el);
     var lineHeight = parseFloat(cs.lineHeight) || 19;
     var extra = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) +
       (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
     var minH = lineHeight * 1 + extra;
-    var maxH = lineHeight * 8 + extra;
+    var maxH = lineHeight * 10 + extra;
     el.style.height = 'auto';
     var scrollH = el.scrollHeight;
     el.style.height = Math.min(Math.max(scrollH, minH), maxH) + 'px';
