@@ -176,13 +176,34 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 21px;
     box-shadow: var(--shadow); transition: width .2s ease, opacity .15s ease;
   }
-  .search-bar.open { width: min(68vw, 300px); opacity: 1; pointer-events: auto; }
+  /* Rộng hơn bản trước (300px -> 360px) để chứa thêm bộ đếm "x/y" + 2 nút lên/xuống, kiểu thanh
+     tìm kiếm Ctrl+F của Chrome (user yêu cầu 2026-07-20). */
+  .search-bar.open { width: min(88vw, 360px); opacity: 1; pointer-events: auto; }
   .search-input-wrap { position: relative; display: flex; align-items: center; height: 100%; }
-  .search-input-wrap svg { position: absolute; left: 14px; opacity: .5; pointer-events: none; color: var(--text-muted); }
+  .search-input-wrap svg.search-icon { position: absolute; left: 14px; opacity: .5; pointer-events: none; color: var(--text-muted); }
   .search-input-wrap input {
-    padding: 0 12px 0 36px; margin-bottom: 0; height: 100%; width: 100%;
-    border: none; border-radius: 21px; background: transparent;
+    padding: 0 4px 0 36px; margin-bottom: 0; height: 100%; flex: 1 1 auto; min-width: 0;
+    border: none; border-radius: 21px 0 0 21px; background: transparent;
   }
+  /* Bộ đếm "x/y" + nút lên/xuống chuyển kết quả — nằm bên phải ô nhập, cùng 1 hàng (giống thanh
+     tìm kiếm Ctrl+F của Chrome trên desktop). */
+  .search-nav { display: flex; align-items: center; flex-shrink: 0; padding-right: 4px; }
+  .search-match-count {
+    font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+    padding: 0 4px; white-space: nowrap; min-width: 28px; text-align: center;
+  }
+  .search-nav-btn {
+    width: 24px; height: 24px; border: none; background: transparent; color: var(--text-muted);
+    cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .search-nav-btn:active:not(:disabled) { background: var(--surface-alt); }
+  .search-nav-btn:disabled { opacity: .3; cursor: default; }
+  /* Highlight kết quả tìm kiếm — CHỈ áp cho Tên dự án/Mã dự án (không áp cho nội dung báo cáo dài
+     trong ô nhập liệu Tab Gửi báo cáo) — dùng lại token màu --priority-* (đã tinh chỉnh sẵn cho cả
+     2 theme) cho kết quả thường, --accent cho kết quả đang chọn (điều hướng bằng nút lên/xuống). */
+  mark.search-hit { background: var(--priority-bg); color: var(--priority-text); border-radius: 2px; padding: 0 1px; }
+  mark.search-hit.active { background: var(--accent); color: #fff; }
 
   .home-intro { padding: 14px 8px 2px; }
   .home-intro p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
@@ -469,8 +490,13 @@
     <div class="tab-panel active" id="tab-projects">
       <div class="search-bar">
         <div class="search-input-wrap">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
           <input id="search-input-projects" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+          <div class="search-nav">
+            <span class="search-match-count" id="search-count-projects"></span>
+            <button type="button" class="search-nav-btn" id="search-prev-projects" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+            <button type="button" class="search-nav-btn" id="search-next-projects" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+          </div>
         </div>
       </div>
       <div id="projects-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
@@ -484,8 +510,13 @@
       <div id="dept-detail-area" style="display:none;">
         <div class="search-bar">
           <div class="search-input-wrap">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
             <input id="search-input-dept" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+            <div class="search-nav">
+              <span class="search-match-count" id="search-count-dept"></span>
+              <button type="button" class="search-nav-btn" id="search-prev-dept" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-next-dept" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+            </div>
           </div>
         </div>
         <div id="dept-detail-content"></div>
@@ -497,8 +528,13 @@
       <div id="submit-list-area">
         <div class="search-bar">
           <div class="search-input-wrap">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
             <input id="search-input-submit" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+            <div class="search-nav">
+              <span class="search-match-count" id="search-count-submit"></span>
+              <button type="button" class="search-nav-btn" id="search-prev-submit" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-next-submit" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+            </div>
           </div>
         </div>
         <div id="submit-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
@@ -513,8 +549,13 @@
       <div id="priority-list-area">
         <div class="search-bar">
           <div class="search-input-wrap">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
             <input id="search-input-priority" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+            <div class="search-nav">
+              <span class="search-match-count" id="search-count-priority"></span>
+              <button type="button" class="search-nav-btn" id="search-prev-priority" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+              <button type="button" class="search-nav-btn" id="search-next-priority" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+            </div>
           </div>
         </div>
         <div id="priority-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
@@ -531,8 +572,13 @@
     <div class="tab-panel" id="tab-danhsachda">
       <div class="search-bar">
         <div class="search-input-wrap">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+          <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
           <input id="search-input-danhsachda" type="text" placeholder="Tìm theo tên hoặc mã dự án...">
+          <div class="search-nav">
+            <span class="search-match-count" id="search-count-danhsachda"></span>
+            <button type="button" class="search-nav-btn" id="search-prev-danhsachda" aria-label="Kết quả trước" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"></path></svg></button>
+            <button type="button" class="search-nav-btn" id="search-next-danhsachda" aria-label="Kết quả tiếp theo" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"></path></svg></button>
+          </div>
         </div>
       </div>
       <div id="danhsachda-content"><div class="skeleton"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div></div>
@@ -590,6 +636,7 @@
                             // sau khi đã mở báo cáo 1 dự án thì báo cáo đó tự đóng lại).
   var openRequestId = 0;
   var searchOverlayOpen = false; // Trạng thái nút tròn tìm kiếm nổi (search-fab) đang mở hay đóng
+  var searchHistoryPushed = false; // (2026-07-20) Còn 1 mốc lịch sử CHƯA tiêu thụ cho phiên tìm kiếm đang mở hay không — xem openSearchOverlay_/closeSearchOverlay_
   var searchWasOpenByTab = {}; // "search-input-X" -> true nếu tab đó đang ĐỂ Ở trạng thái mở (kể cả
                                 // lúc không phải tab hiện tại) — để tự mở lại khi quay về đúng tab
                                 // thay vì luôn đóng khi chuyển đi (user yêu cầu 2026-07-19).
@@ -839,6 +886,90 @@
     else if (id === 'search-input-danhsachda') renderDanhSachDaFiltered();
   }
 
+  // =========================================================================
+  // TÌM KIẾM KIỂU Ctrl+F (2026-07-20) — thay cho cơ chế LỌC (ẩn hẳn dự án không khớp) trước đây.
+  // Lý do đổi: user phản ánh — xem báo cáo 1 dự án qua tìm kiếm, tắt tìm kiếm thì TOÀN BỘ dự án
+  // khác hiện lại làm dự án đang xem bị "nhảy" khỏi màn hình (do danh sách render lại với SỐ LƯỢNG
+  // phần tử khác). Đổi sang KHÔNG BAO GIỜ ẩn/thêm bớt phần tử theo từ khóa nữa — chỉ tô sáng
+  // (<mark>) đúng đoạn khớp trong Tên dự án/Mã dự án, y hệt Ctrl+F trình duyệt — nên layout không
+  // bao giờ đổi hình dạng khi gõ/xóa từ khóa hay đóng/mở ô tìm kiếm.
+  // =========================================================================
+
+  // "id search-input-X" -> hậu tố dùng để dựng id các phần tử liên quan (#search-count-X,
+  // #search-prev-X, #search-next-X) + id khung chứa kết quả để scrollIntoView đúng phạm vi.
+  var SEARCH_ID_INFO = {
+    'search-input-projects': { suffix: 'projects', container: 'projects-content' },
+    'search-input-dept': { suffix: 'dept', container: 'dept-detail-content' },
+    'search-input-submit': { suffix: 'submit', container: 'submit-content' },
+    'search-input-priority': { suffix: 'priority', container: 'priority-content' },
+    'search-input-danhsachda': { suffix: 'danhsachda', container: 'danhsachda-content' }
+  };
+  var searchActiveIndex = {}; // "search-input-X" -> vị trí kết quả đang chọn (0-based), reset về 0 khi gõ từ khóa mới
+
+  function escapeRegExp_(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  // Trả về chuỗi HTML đã escape an toàn, với MỌI đoạn khớp `q` (không phân biệt hoa/thường) được
+  // bọc trong <mark data-hit-idx="N">. `counterRef` là {n:0} DÙNG CHUNG cho cả 1 lượt render toàn
+  // danh sách — để số thứ tự kết quả (data-hit-idx) liên tục xuyên suốt MỌI dự án/trường trong tab,
+  // khớp đúng ý nghĩa "x/y" của cả tab chứ không phải riêng 1 dòng.
+  function highlightMatches_(text, q, counterRef) {
+    var raw = (text === null || text === undefined) ? '' : text.toString();
+    if (!q) return escapeHtml(raw);
+    var re = new RegExp(escapeRegExp_(q), 'gi');
+    var out = '';
+    var lastIndex = 0;
+    var m;
+    while ((m = re.exec(raw)) !== null) {
+      if (m[0] === '') { re.lastIndex++; continue; }
+      out += escapeHtml(raw.slice(lastIndex, m.index));
+      out += '<mark class="search-hit" data-hit-idx="' + (counterRef.n++) + '">' + escapeHtml(m[0]) + '</mark>';
+      lastIndex = m.index + m[0].length;
+    }
+    out += escapeHtml(raw.slice(lastIndex));
+    return out;
+  }
+
+  // Gọi SAU MỖI LẦN renderXFiltered() dựng xong danh sách (dù có đang gõ tìm kiếm hay không) — cập
+  // nhật "x/y", bật/tắt 2 nút lên/xuống, và tô đậm + cuộn tới đúng kết quả đang chọn.
+  function updateSearchNavUI_(id, totalHits) {
+    var info = SEARCH_ID_INFO[id];
+    var q = $(id).value;
+    var countEl = $('search-count-' + info.suffix);
+    var prevBtn = $('search-prev-' + info.suffix);
+    var nextBtn = $('search-next-' + info.suffix);
+    if (!q || totalHits === 0) {
+      countEl.textContent = q ? '0/0' : '';
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+    if (searchActiveIndex[id] === undefined || searchActiveIndex[id] >= totalHits) searchActiveIndex[id] = 0;
+    countEl.textContent = (searchActiveIndex[id] + 1) + '/' + totalHits;
+    prevBtn.disabled = false;
+    nextBtn.disabled = false;
+    applyActiveHit_(id, searchActiveIndex[id]);
+  }
+
+  function applyActiveHit_(id, activeIdx) {
+    var info = SEARCH_ID_INFO[id];
+    var hits = document.querySelectorAll('#' + info.container + ' .search-hit');
+    for (var i = 0; i < hits.length; i++) hits[i].classList.toggle('active', i === activeIdx);
+    if (hits[activeIdx]) hits[activeIdx].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  // direction: +1 (nút/phím xuống, kết quả tiếp theo) hoặc -1 (nút/phím lên, kết quả trước) — vòng
+  // lại đầu/cuối danh sách, giống hệt Ctrl+F trình duyệt.
+  function goToSearchMatch_(id, direction) {
+    var info = SEARCH_ID_INFO[id];
+    var hits = document.querySelectorAll('#' + info.container + ' .search-hit');
+    if (hits.length === 0) return;
+    var cur = searchActiveIndex[id] || 0;
+    cur = (cur + direction + hits.length) % hits.length;
+    searchActiveIndex[id] = cur;
+    $('search-count-' + info.suffix).textContent = (cur + 1) + '/' + hits.length;
+    applyActiveHit_(id, cur);
+  }
+
   // Chỉ hiện nút tròn ở những màn hình THỰC SỰ có ô tìm kiếm tương ứng (ẩn ở lưới chọn bộ phận
   // trước khi chạm vào 1 bộ phận cụ thể — màn đó không có gì để tìm). LUÔN đóng HIỂN THỊ của
   // overlay đang mở (nếu có) mỗi khi hàm này chạy — hàm này chỉ được gọi đúng lúc chuyển tab/vào-ra
@@ -858,6 +989,11 @@
 
   // skipFocus=true: mở lại TỰ ĐỘNG khi quay về 1 tab trước đó đã để mở (không cướp bàn phím).
   // Mặc định (bấm tay vào nút tròn): luôn lấy focus để bật bàn phím ngay.
+  // (2026-07-20) Đẩy 1 mốc lịch sử THẬT khi mở — để phím/thao tác back đóng được ô tìm kiếm thay
+  // vì thoát thẳng app (cùng cơ chế đã áp dụng cho chi tiết bộ phận, xem searchHistoryPushed +
+  // popstate bên dưới). Guard bằng searchHistoryPushed để KHÔNG đẩy chồng mốc mới mỗi lần tự mở
+  // lại do chuyển tab (skipFocus=true có thể gọi hàm này nhiều lần liên tiếp trong 1 "phiên" tìm
+  // kiếm đang mở — chỉ cần đúng 1 mốc lịch sử cho cả phiên đó).
   function openSearchOverlay_(skipFocus) {
     var id = getActiveSearchInputId_();
     if (!id) return;
@@ -866,17 +1002,40 @@
     $('search-fab').classList.add('open');
     $(id).closest('.search-bar').classList.add('open');
     if (!skipFocus) $(id).focus();
+    if (!searchHistoryPushed) {
+      history.pushState({ view: 'search' }, '');
+      searchHistoryPushed = true;
+    }
   }
 
-  // clear=true: bấm lại nút tròn khi đang mở => vừa ẩn ô, vừa xóa từ khóa đang gõ và hiện lại đầy
-  // đủ danh sách, ĐỒNG THỜI quên hẳn trạng thái "đang mở" của tab này (user yêu cầu 2026-07-19).
-  // clear=false: chỉ ẩn HIỂN THỊ tạm thời (dùng khi chuyển tab/đổi màn hình) — KHÔNG đụng tới
-  // searchWasOpenByTab, để updateSearchFabVisibility_() còn tự mở lại đúng khi quay về tab đó.
-  function closeSearchOverlay_(clear) {
+  // clear=true: bấm lại nút tròn (hoặc chạm ra ngoài khi ô đang trống) khi đang mở => vừa ẩn ô,
+  // vừa xóa từ khóa đang gõ, ĐỒNG THỜI quên hẳn trạng thái "đang mở" của tab này (user yêu cầu
+  // 2026-07-19). (2026-07-20) Từ khi đổi tìm kiếm sang kiểu Ctrl+F (tô sáng, không ẩn/hiện dự án),
+  // xóa từ khóa chỉ còn tác dụng xóa <mark> — KHÔNG còn làm số lượng thẻ thay đổi -> KHÔNG còn
+  // hiện tượng layout "nhảy" khi đóng ô tìm kiếm (đúng bug gốc user phản ánh 2026-07-20).
+  // clear=false: chỉ ẩn HIỂN THỊ tạm thời (dùng khi chuyển tab/đổi màn hình, gọi RẤT thường xuyên
+  // qua updateSearchFabVisibility_() mỗi lần chuyển tab) — KHÔNG đụng tới searchWasOpenByTab/từ
+  // khóa/lịch sử, để updateSearchFabVisibility_() còn tự mở lại đúng khi quay về tab đó. CỐ Ý
+  // KHÔNG gọi history.back() ở nhánh này — nếu không, mỗi lần chuyển tab (rất thường xuyên) đều
+  // tiêu thụ 1 mốc lịch sử, dễ chồng chéo với mốc lịch sử của chi tiết bộ phận (backFromDeptDetail
+  // cũng gọi history.back() ngay trong switchTab()). Mốc lịch sử của "search" chỉ thật sự bị tiêu
+  // thụ khi CLOSE THẬT (clear=true) hoặc khi popstate tự tiêu thụ nó (fromPopstate=true) — dù có
+  // bao nhiêu lần ẩn/hiện tạm do chuyển tab ở giữa cũng không ảnh hưởng, vì cờ searchHistoryPushed
+  // chỉ phản ánh "còn 1 mốc CHƯA tiêu thụ hay không", không phản ánh trạng thái hiển thị hiện tại.
+  // fromPopstate=true: hàm này đang được gọi TỪ popstate (người dùng bấm back/vuốt lùi) — mốc lịch
+  // sử vừa pushState() ở trên ĐÃ bị tiêu thụ bởi chính thao tác đó rồi, KHÔNG được gọi history.back()
+  // thêm lần nữa (sẽ tiêu thụ NHẦM mốc lịch sử của tầng khác, ví dụ chi tiết bộ phận bên dưới).
+  function closeSearchOverlay_(clear, fromPopstate) {
     searchOverlayOpen = false;
     $('search-fab').classList.remove('open');
     var bars = document.querySelectorAll('.search-bar.open');
     for (var i = 0; i < bars.length; i++) bars[i].classList.remove('open');
+    if (fromPopstate) {
+      searchHistoryPushed = false; // Chỉ đồng bộ lại cờ — mốc đã bị chính popstate này tiêu thụ rồi
+    } else if (clear && searchHistoryPushed) {
+      searchHistoryPushed = false;
+      history.back(); // Tiêu thụ mốc đã đẩy lúc mở — tránh sót lại 1 mốc vô nghĩa
+    }
     if (clear) {
       var id = getActiveSearchInputId_();
       if (id) searchWasOpenByTab[id] = false;
@@ -990,28 +1149,54 @@
   $('login-btn').addEventListener('click', submitPassword);
   $('password-input').addEventListener('keydown', function (e) { if (e.key === 'Enter') submitPassword(); });
   $('logout-link').addEventListener('click', logout);
-  $('back-btn').addEventListener('click', backFromDeptDetail);
-  $('search-input-projects').addEventListener('input', renderProjectsFiltered);
-  $('search-input-dept').addEventListener('input', renderDeptDetailFiltered);
+  $('back-btn').addEventListener('click', function () { backFromDeptDetail(true); });
   $('tab-btn-projects').addEventListener('click', function () { switchTab('projects'); });
   $('tab-btn-departments').addEventListener('click', function () { switchTab('departments'); });
   $('tab-btn-submit').addEventListener('click', function () { switchTab('submit'); });
   $('tab-btn-priority').addEventListener('click', function () { switchTab('priority'); });
   $('tab-btn-tkbc').addEventListener('click', function () { switchTab('tkbc'); });
   $('tab-btn-danhsachda').addEventListener('click', function () { switchTab('danhsachda'); });
-  $('search-input-submit').addEventListener('input', renderSubmitFiltered);
   $('submit-send-btn').addEventListener('click', doSubmitReports);
   $('add-project-close-btn').addEventListener('click', closeAddProjectPicker);
   $('add-project-search-input').addEventListener('input', renderAddProjectPickerList);
   // Bấm vào nền tối (ngoài sheet) để đóng, giống bottom-sheet chuẩn — không đóng khi bấm bên
   // trong sheet (kiểm tra e.target === chính overlay, không phải phần tử con nào đó nổi bọt lên).
   $('add-project-overlay').addEventListener('click', function (e) { if (e.target.id === 'add-project-overlay') closeAddProjectPicker(); });
-  $('search-input-priority').addEventListener('input', renderPriorityFiltered);
   $('priority-save-btn').addEventListener('click', doSavePriority);
-  $('search-input-danhsachda').addEventListener('input', renderDanhSachDaFiltered);
+  setupSearchNavControls_();
   $('search-fab').addEventListener('click', function () {
     if (searchOverlayOpen) closeSearchOverlay_(true); else openSearchOverlay_();
   });
+
+  // (2026-07-20) Chạm ra ngoài khi ô tìm kiếm đang mở NHƯNG CHƯA GÕ GÌ -> tự đóng (đỡ phải bấm lại
+  // đúng nút tròn). Nếu ĐÃ gõ từ khóa thì giữ nguyên — người dùng có thể đang chạm vào 1 kết quả
+  // tô sáng trong danh sách để xem thêm, không có ý định đóng tìm kiếm (user yêu cầu 2026-07-20).
+  document.addEventListener('click', function (e) {
+    if (!searchOverlayOpen) return;
+    if (e.target.closest('.search-bar') || e.target.closest('.search-fab')) return;
+    var id = getActiveSearchInputId_();
+    if (id && !$(id).value) closeSearchOverlay_(true);
+  });
+
+  // Gắn sự kiện cho CẢ 5 ô tìm kiếm cùng lúc (input, phím Enter/Shift+Enter, 2 nút lên/xuống) —
+  // gộp lại 1 vòng lặp qua SEARCH_ID_INFO thay vì lặp lại 5 lần như trước (2026-07-20, đồng thời
+  // với việc đổi cơ chế tìm kiếm sang kiểu Ctrl+F).
+  function setupSearchNavControls_() {
+    Object.keys(SEARCH_ID_INFO).forEach(function (id) {
+      var info = SEARCH_ID_INFO[id];
+      $(id).addEventListener('input', function () {
+        searchActiveIndex[id] = 0; // Gõ từ khóa mới -> luôn quay về kết quả đầu tiên, giống Ctrl+F
+        triggerSearchRerender_(id);
+      });
+      $(id).addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        goToSearchMatch_(id, e.shiftKey ? -1 : 1);
+      });
+      $('search-prev-' + info.suffix).addEventListener('click', function () { goToSearchMatch_(id, -1); });
+      $('search-next-' + info.suffix).addEventListener('click', function () { goToSearchMatch_(id, 1); });
+    });
+  }
 
   function submitPassword() {
     var val = $('password-input').value.trim();
@@ -1103,6 +1288,7 @@
   }, { passive: true });
 
   function enterMain() {
+    pushRootHistoryIfNeeded_(); // Đẩy mốc lịch sử "gốc" ngay khi vào màn hình chính — xem giải thích ở khai báo hàm này (double-back-to-exit)
     // Áp dụng giao diện đúng vai trò MỖI LẦN vào app (kể cả lần vào lại sau khi đã mainEntered)
     // vì role có thể khác giữa các lần đăng nhập trên cùng thiết bị dùng chung.
     $('tab-btn-submit').classList.toggle('hidden-role', currentRole !== 'manager');
@@ -1220,22 +1406,22 @@
 
   function renderProjectsFiltered() {
     if (!overviewResp || !overviewResp.ok) return;
-    var q = $('search-input-projects').value.trim().toLowerCase();
+    // (2026-07-20) Đổi từ LỌC (ẩn dự án không khớp) sang TÔ SÁNG kiểu Ctrl+F — xem ghi chú đầu
+    // mục "TÌM KIẾM KIỂU Ctrl+F" phía trên. `q` giữ NGUYÊN hoa/thường thật (không lowercase) vì
+    // highlightMatches_ tự so khớp không phân biệt hoa/thường qua regex 'i', cần giữ q gốc để
+    // hiện đúng đoạn khớp thật trong <mark>.
+    var q = $('search-input-projects').value.trim();
+    var hitCounter = { n: 0 }; // Đếm liên tục xuyên suốt toàn bộ danh sách -> đúng ý nghĩa "x/y"
     var html = '';
-    var totalShown = 0;
+    var totalProjects = 0;
     for (var gi = 0; gi < overviewResp.groups.length; gi++) {
       var g = overviewResp.groups[gi];
-      var projects = [];
-      for (var pi = 0; pi < g.projects.length; pi++) {
-        var p = g.projects[pi];
-        if (!q || (p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1)) projects.push(p);
-      }
-      if (projects.length === 0) continue;
-      totalShown += projects.length;
+      var projects = g.projects;
+      totalProjects += projects.length;
       var banGroupId = 'ban-group-' + gi;
-      // Khi ĐANG tìm kiếm (q khác rỗng), LUÔN mở rộng — dự án khớp tìm kiếm phải hiện ra kể cả
-      // đang ở trong 1 Ban đã bị thu gọn trước đó, không thì tìm không thấy dù dự án có tồn tại
-      // (lỗi user phản ánh 2026-07-19). Chỉ áp dụng collapsedBanGroups khi KHÔNG tìm kiếm.
+      // Khi ĐANG tìm kiếm (q khác rỗng), LUÔN mở rộng — nếu không, kết quả khớp nằm trong 1 Ban đã
+      // thu gọn trước đó sẽ không thấy được (max-height:0 của .collapsed che mất, kể cả đã tô sáng
+      // đúng chỗ) dù dự án có tồn tại. Chỉ áp dụng collapsedBanGroups khi KHÔNG tìm kiếm.
       var isCollapsed = !q && collapsedBanGroups[g.ban];
       html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
       if (g.ban) {
@@ -1252,8 +1438,8 @@
         var isOpen = !!openProjectIds[proj.id];
         html += '<div class="project-row' + (g.isPriority ? ' priority' : '') + (isOpen ? ' open' : '') + '" id="' + rowId + '" data-project-id="' + escapeHtml(proj.id) + '">' +
           '<div class="project-head">' +
-          '<div class="project-info"><div class="project-name">' + escapeHtml(proj.name) + '</div>' +
-          '<div class="project-sub">' + escapeHtml(proj.id) + '</div></div>' +
+          '<div class="project-info"><div class="project-name">' + highlightMatches_(proj.name, q, hitCounter) + '</div>' +
+          '<div class="project-sub">' + highlightMatches_(proj.id, q, hitCounter) + '</div></div>' +
           '<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"></path></svg>' +
           '</div><div class="project-body">';
         for (var h = 0; h < overviewResp.headers.length; h++) {
@@ -1267,7 +1453,8 @@
       }
       html += '</div>';
     }
-    $('projects-content').innerHTML = totalShown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    $('projects-content').innerHTML = totalProjects > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Chưa có dự án nào.</div>';
+    updateSearchNavUI_('search-input-projects', hitCounter.n);
     // Bấm BẤT KỲ đâu trong thẻ dự án (kể cả phần báo cáo đã xổ ra, không chỉ riêng tên dự án) đều
     // đóng/mở được — user yêu cầu 2026-07-19: trước đây chỉ bấm đúng phần tiêu đề (.project-head)
     // mới thu gọn lại được, bất tiện khi báo cáo dài.
@@ -1481,19 +1668,14 @@
 
   function renderDeptDetailFiltered() {
     if (!deptDetailData) return;
-    var q = $('search-input-dept').value.trim().toLowerCase();
+    var q = $('search-input-dept').value.trim(); // Giữ nguyên hoa/thường thật, xem giải thích ở renderProjectsFiltered
+    var hitCounter = { n: 0 };
     var html = '';
-    var totalShown = 0;
+    var totalProjects = 0;
     for (var gi = 0; gi < deptDetailData.groups.length; gi++) {
       var g = deptDetailData.groups[gi];
-      var matched = [];
-      for (var pi = 0; pi < g.projects.length; pi++) {
-        var p = g.projects[pi];
-        if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
-        matched.push(p);
-      }
-      if (matched.length === 0) continue;
-      totalShown += matched.length;
+      var projects = g.projects;
+      totalProjects += projects.length;
       var banGroupId = 'dept-ban-group-' + gi;
       // Dùng CHUNG collapsedBanGroups với Tab Dự án — thu gọn 1 Ban ở tab nào cũng đồng bộ sang
       // tab kia, và LUÔN mở rộng khi đang tìm kiếm (giống hệt cơ chế Tab Dự án).
@@ -1501,23 +1683,24 @@
       html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
       if (g.ban) {
         html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
-          '<span class="ban-title' + (g.isPriority ? ' priority' : '') + '">' + escapeHtml(g.ban) + ' (' + matched.length + ')</span>' +
+          '<span class="ban-title' + (g.isPriority ? ' priority' : '') + '">' + escapeHtml(g.ban) + ' (' + projects.length + ')</span>' +
           '<svg class="ban-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"></path></svg>' +
           '</div>';
       }
-      for (var k = 0; k < matched.length; k++) {
-        var p = matched[k];
+      for (var k = 0; k < projects.length; k++) {
+        var p = projects[k];
         html += '<div class="flat-card' + (g.isPriority ? ' priority' : '') + '">' +
-          '<div class="flat-card-head"><div class="project-name">' + escapeHtml(p.name) + '</div></div>' +
+          '<div class="flat-card-head"><div class="project-name">' + highlightMatches_(p.name, q, hitCounter) + '</div></div>' +
           // Chữ "Ưu tiên" nằm CÙNG HÀNG với mã DA (không phải cùng hàng tên dự án như bản trước) —
           // user yêu cầu 2026-07-19.
-          '<div class="project-sub" style="margin-bottom:8px;">' + escapeHtml(p.id) +
+          '<div class="project-sub" style="margin-bottom:8px;">' + highlightMatches_(p.id, q, hitCounter) +
           (g.isPriority ? ' <span class="priority-badge">Ưu tiên</span>' : '') + '</div>' +
           '<div class="block-text">' + runsToHtml(p.runs) + '</div></div>';
       }
       html += '</div>';
     }
-    $('dept-detail-content').innerHTML = totalShown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    $('dept-detail-content').innerHTML = totalProjects > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Chưa có dự án nào.</div>';
+    updateSearchNavUI_('search-input-dept', hitCounter.n);
     var banTitles = document.querySelectorAll('#tab-departments .ban-title-row');
     for (var b = 0; b < banTitles.length; b++) {
       banTitles[b].addEventListener('click', function () {
@@ -1539,11 +1722,52 @@
   // (không đi qua hàm này).
   var deptDetailHistoryPushed = false;
 
+  // (2026-07-20) "Chạm back lần nữa để thoát" — thay vì để back/vuốt lùi thoát thẳng app ngay lần
+  // đầu (user phản ánh: "trong khi sử dụng rất nhiều người thoát nhầm", phải đăng nhập lại mỗi lần
+  // lỡ tay). Đẩy 1 mốc lịch sử "gốc" ngay sau khi vào màn hình chính — LUÔN có gì đó cho back tiêu
+  // thụ trước khi thật sự rời trang, cho phép chặn lại lần bấm đầu tiên bằng cảnh báo, chỉ thật sự
+  // thoát nếu bấm back LẦN THỨ 2 trong vòng 2 giây (giống cơ chế quen thuộc của Shopee/Zalo...).
+  var rootHistoryPushed = false;
+  var rootExitRearmTimer = null;
+  var BACK_EXIT_CONFIRM_MS = 2000;
+
+  function pushRootHistoryIfNeeded_() {
+    if (rootHistoryPushed) return;
+    history.pushState({ view: 'root' }, '');
+    rootHistoryPushed = true;
+  }
+
+  // Thứ tự kiểm tra QUAN TRỌNG — phải khớp đúng thứ tự các tầng đã pushState (tầng mở SAU cùng
+  // phải đóng TRƯỚC, kiểu ngăn xếp): tìm kiếm (có thể mở TRÊN CÙNG bất kỳ tab/màn hình nào, kể cả
+  // chi tiết bộ phận) -> chi tiết bộ phận -> cuối cùng mới tới mốc "gốc" (double-back-to-exit).
   window.addEventListener('popstate', function () {
+    if (searchHistoryPushed) {
+      searchHistoryPushed = false;
+      if (searchOverlayOpen) closeSearchOverlay_(true, true);
+      return;
+    }
     if (deptDetailHistoryPushed && $('dept-detail-area').style.display !== 'none') {
       deptDetailHistoryPushed = false;
       resetDeptDetailView_();
+      return;
     }
+    // Không còn tầng JS nào đang mở -> mốc "gốc" vừa bị tiêu thụ -> người dùng đang thật sự cố
+    // back ra khỏi app. Mốc gốc coi như đã tiêu thụ xong (dù có đẩy lại hay không, quyết định ở
+    // dưới) nên đặt lại false ngay.
+    rootHistoryPushed = false;
+    showToast('Nhấn Back lần nữa để thoát ứng dụng');
+    // QUAN TRỌNG: KHÔNG đẩy lại mốc bảo vệ NGAY LẬP TỨC ở đây (Reviewer phát hiện 2026-07-20 — bản
+    // trước đẩy lại ngay khiến lần bấm back THỨ 2 chỉ tiêu thụ đúng mốc vừa đẩy lại, lại rơi về
+    // đúng chỗ này lần nữa thay vì thoát thật — biến "bấm 2 lần để thoát" thành phải bấm 3 lần).
+    // Thay vào đó CHỜ HẾT 2 GIÂY không thấy bấm back lần nữa mới đẩy lại mốc bảo vệ. Nếu người dùng
+    // bấm back lần 2 TRONG lúc chờ: vì chưa có gì được đẩy lại, thao tác back đó không còn mốc nào
+    // của app để tiêu thụ nữa -> trình duyệt/hệ điều hành tự thoát thẳng, không qua popstate/JS nào
+    // cả (đúng ý "bấm back 2 lần thì thoát", không cần thêm logic gì ở đây để "cho phép" thoát).
+    if (rootExitRearmTimer) clearTimeout(rootExitRearmTimer);
+    rootExitRearmTimer = setTimeout(function () {
+      rootExitRearmTimer = null;
+      pushRootHistoryIfNeeded_();
+    }, BACK_EXIT_CONFIRM_MS);
   });
 
   function resetDeptDetailView_() {
@@ -1558,8 +1782,16 @@
     updateSearchFabVisibility_(); // Thoát chi tiết bộ phận -> về lưới chọn bộ phận, không còn ô tìm kiếm nào -> ẩn nút tròn
   }
 
-  function backFromDeptDetail() {
+  // fromBackButton=true: gọi TỪ đúng nút "←" trên màn hình người dùng bấm tay — nếu tìm kiếm đang
+  // mở TRÊN nền chi tiết bộ phận, đóng tìm kiếm TRƯỚC (đúng thứ tự ngăn xếp), phải bấm "←" lần
+  // NỮA mới thật sự thoát chi tiết bộ phận. KHÔNG áp dụng khi gọi từ switchTab() (fromBackButton
+  // để mặc định falsy) — switchTab() gọi hàm này như 1 tiện ích "luôn đảm bảo thoát chi tiết bộ
+  // phận trước khi đổi tab" bất kể đang ở tab nào, KHÔNG phải người dùng chủ động bấm back, nên
+  // không được đụng vào trạng thái tìm kiếm đang mở của tab đích (updateSearchFabVisibility_() gọi
+  // sau đó trong switchTab() đã tự lo việc ẩn/hiện đúng theo tab mới).
+  function backFromDeptDetail(fromBackButton) {
     openRequestId++; // Vô hiệu hóa callback openDepartmentDetail đang chờ dữ liệu (bấm back trước khi lọc xong)
+    if (fromBackButton && searchOverlayOpen) { closeSearchOverlay_(true); return; }
     if (deptDetailHistoryPushed) {
       deptDetailHistoryPushed = false;
       history.back(); // Tiêu thụ mốc lịch sử đã đẩy lúc mở chi tiết — tránh còn sót lại khiến lần bấm back TIẾP THEO (ở màn hình khác) bị "kẹt" 1 nhịp vô nghĩa
@@ -1628,24 +1860,27 @@
 
   function renderSubmitFiltered() {
     if (!submitProjectsResp || !submitProjectsResp.ok) return;
-    var q = $('search-input-submit').value.trim().toLowerCase();
+    // (2026-07-20) Đổi sang tô sáng kiểu Ctrl+F thay vì lọc/ẩn — ĐÂY CHÍNH LÀ TAB user phản ánh lỗi
+    // gốc: xem báo cáo 1 dự án qua tìm kiếm, tắt tìm kiếm thì các dự án khác hiện lại làm dự án
+    // đang xem "nhảy" khỏi màn hình. Không lọc nữa -> số lượng thẻ không đổi giữa các lần gõ/xóa từ
+    // khóa -> không còn giật layout. CHỈ tô sáng Tên dự án/Mã dự án (không đụng vào nội dung các ô
+    // nhập liệu bên dưới — đúng yêu cầu user).
+    var q = $('search-input-submit').value.trim();
+    var hitCounter = { n: 0 };
     var html = '';
-    var shown = 0;
     for (var i = 0; i < submitProjectsResp.projects.length; i++) {
       var p = submitProjectsResp.projects[i];
-      if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
-      shown++;
       var isDirty = !!pendingEdits[p.id];
       // Nút xóa CHỈ hiện cho dự án thêm trong phiên này (sessionAddedIds) — dự án load trực tiếp
       // từ NHAPBC lúc mở tab không có nút này (user yêu cầu 2026-07-20: "chỉ có thể xóa các dự án
       // đã thêm trong phiên làm việc đó").
       var canDelete = !!sessionAddedIds[p.id];
       html += '<div class="edit-card' + (isDirty ? ' dirty' : '') + '" data-project="' + escapeHtml(p.id) + '">' +
-        '<div class="edit-card-head"><div class="project-name">' + escapeHtml(p.name) + '</div>' +
+        '<div class="edit-card-head"><div class="project-name">' + highlightMatches_(p.name, q, hitCounter) + '</div>' +
         (isDirty ? '<span class="dirty-badge">Đã sửa</span>' : '') +
         (canDelete ? '<button type="button" class="remove-added-btn" data-project="' + escapeHtml(p.id) + '" title="Xóa dự án vừa thêm">&#10005;</button>' : '') +
         '</div>' +
-        '<div class="project-sub" style="margin-bottom:6px;">' + escapeHtml(p.id) + '</div>';
+        '<div class="project-sub" style="margin-bottom:6px;">' + highlightMatches_(p.id, q, hitCounter) + '</div>';
       for (var f = 0; f < submitProjectsResp.fields.length; f++) {
         var field = submitProjectsResp.fields[f];
         var currentVal = (pendingEdits[p.id] && pendingEdits[p.id][field] !== undefined) ? pendingEdits[p.id][field] : (p.values[field] || '');
@@ -1676,12 +1911,13 @@
       }
       html += '</div>';
     }
-    var listHtml = shown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
-    // Nút "+ Thêm dự án" LUÔN hiện ở cuối cùng, kể cả khi đang tìm kiếm không ra kết quả — đây là
-    // nút hành động, không phải 1 dự án để lọc theo ô tìm kiếm (user yêu cầu 2026-07-20).
+    var listHtml = submitProjectsResp.projects.length > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Chưa có dự án nào.</div>';
+    // Nút "+ Thêm dự án" LUÔN hiện ở cuối cùng — đây là nút hành động, không phải 1 dự án (user
+    // yêu cầu 2026-07-20).
     listHtml += '<button type="button" id="add-project-btn" class="add-project-btn">' +
       '<span class="add-project-btn-icon">+</span> Thêm dự án</button>';
     $('submit-content').innerHTML = listHtml;
+    updateSearchNavUI_('search-input-submit', hitCounter.n);
     var inputs = document.querySelectorAll('#submit-content textarea.edit-input');
     for (var k = 0; k < inputs.length; k++) {
       inputs[k].addEventListener('input', onEditFieldChange);
@@ -2022,35 +2258,30 @@
 
   function renderPriorityFiltered() {
     if (!priorityMapResp || !priorityMapResp.ok) return;
-    var q = $('search-input-priority').value.trim().toLowerCase();
+    var q = $('search-input-priority').value.trim(); // Giữ nguyên hoa/thường thật, xem giải thích ở renderProjectsFiltered
+    var hitCounter = { n: 0 };
     var groups = buildPriorityGroups_();
     var html = '';
-    var totalShown = 0;
+    var totalProjects = 0;
     for (var gi = 0; gi < groups.length; gi++) {
       var g = groups[gi];
-      var matched = [];
-      for (var pi = 0; pi < g.projects.length; pi++) {
-        var p = g.projects[pi];
-        if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
-        matched.push(p);
-      }
-      if (matched.length === 0) continue;
-      totalShown += matched.length;
+      var projects = g.projects;
+      totalProjects += projects.length;
       var banGroupId = 'priority-ban-group-' + gi;
       var isCollapsed = !q && collapsedBanGroups[g.ban];
       html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
       if (g.ban) {
         html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
-          '<span class="ban-title' + (g.isPriority ? ' priority' : '') + '">' + escapeHtml(g.ban) + ' (' + matched.length + ')</span>' +
+          '<span class="ban-title' + (g.isPriority ? ' priority' : '') + '">' + escapeHtml(g.ban) + ' (' + projects.length + ')</span>' +
           '<svg class="ban-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M6 9l6 6 6-6"></path></svg>' +
           '</div>';
       }
-      for (var k = 0; k < matched.length; k++) {
-        var proj = matched[k];
+      for (var k = 0; k < projects.length; k++) {
+        var proj = projects[k];
         var val = pendingPriority[proj.id] || '';
         html += '<div class="priority-card' + (val ? ' set' : '') + '" data-project="' + escapeHtml(proj.id) + '">' +
-          '<div class="priority-card-head"><div class="project-name">' + escapeHtml(proj.name) + '</div>' +
-          '<div class="project-sub">' + escapeHtml(proj.id) + '</div></div>' +
+          '<div class="priority-card-head"><div class="project-name">' + highlightMatches_(proj.name, q, hitCounter) + '</div>' +
+          '<div class="project-sub">' + highlightMatches_(proj.id, q, hitCounter) + '</div></div>' +
           '<div class="priority-chips">';
         for (var lvl = 1; lvl <= 5; lvl++) {
           html += '<button class="priority-chip' + (val === String(lvl) ? ' active' : '') + '" data-value="' + lvl + '">' + lvl + '</button>';
@@ -2060,7 +2291,8 @@
       }
       html += '</div>';
     }
-    $('priority-content').innerHTML = totalShown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    $('priority-content').innerHTML = totalProjects > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Chưa có dự án nào.</div>';
+    updateSearchNavUI_('search-input-priority', hitCounter.n);
     var chips = document.querySelectorAll('#priority-content .priority-chip');
     for (var c = 0; c < chips.length; c++) chips[c].addEventListener('click', onPriorityChipClick);
     // Giữ nguyên trạng thái khóa (nếu đang có 1 lượt lưu chạy dở) khi render lại — ví dụ người
@@ -2277,16 +2509,14 @@
       $('danhsachda-content').innerHTML = '<div class="state-msg"><div class="icon">&#9888;</div>' + escapeHtml(projectListResp.error || 'Lỗi tải dữ liệu.') + '</div>';
       return;
     }
-    var q = $('search-input-danhsachda').value.trim().toLowerCase();
+    var q = $('search-input-danhsachda').value.trim(); // Giữ nguyên hoa/thường thật, xem giải thích ở renderProjectsFiltered
+    var hitCounter = { n: 0 };
     var html = '';
-    var shown = 0;
     for (var i = 0; i < projectListResp.projects.length; i++) {
       var p = projectListResp.projects[i];
-      if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
-      shown++;
       html += '<div class="da-card">' +
-        '<div class="da-card-head"><span class="da-id-badge">' + escapeHtml(p.id) + '</span>' +
-        '<div class="da-name">' + escapeHtml(p.name) + '</div></div>';
+        '<div class="da-card-head"><span class="da-id-badge">' + highlightMatches_(p.id, q, hitCounter) + '</span>' +
+        '<div class="da-name">' + highlightMatches_(p.name, q, hitCounter) + '</div></div>';
       if (p.ban || p.resp) {
         html += '<div class="da-meta">';
         if (p.ban) html += '<span>Ban: <b>' + escapeHtml(p.ban) + '</b></span>';
@@ -2295,7 +2525,8 @@
       }
       html += '</div>';
     }
-    $('danhsachda-content').innerHTML = shown > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Không tìm thấy dự án phù hợp.</div>';
+    $('danhsachda-content').innerHTML = projectListResp.projects.length > 0 ? html : '<div class="state-msg"><div class="icon">&#128269;</div>Chưa có dự án nào.</div>';
+    updateSearchNavUI_('search-input-danhsachda', hitCounter.n);
   }
 
   function logout() {
@@ -2324,6 +2555,14 @@
     // history.back() ÉP người dùng lùi trang ngay sau khi vừa đăng nhập lại — thao tác họ không hề
     // yêu cầu (lỗi Reviewer phát hiện 2026-07-20).
     deptDetailHistoryPushed = false;
+    // Cùng lý do vừa giải thích ở trên nhưng cho tìm kiếm: nếu đăng xuất trong lúc searchHistoryPushed
+    // còn true (đã mở tìm kiếm rồi chuyển tab ẩn đi mà chưa đóng hẳn — xem closeSearchOverlay_),
+    // popstate lần back TIẾP THEO sau khi đăng nhập lại sẽ tưởng còn tầng "search" cần đóng, tự
+    // consume 1 mốc mà không làm gì (searchOverlayOpen đã false) rồi return sớm — nuốt mất lần bấm
+    // back đó một cách vô hình, không tới được logic double-back-to-exit (lỗi Reviewer phát hiện
+    // 2026-07-20, cùng loại với deptDetailHistoryPushed ở trên).
+    searchHistoryPushed = false;
+    if (rootExitRearmTimer) { clearTimeout(rootExitRearmTimer); rootExitRearmTimer = null; }
     currentDeptDetailCode = null;
     // Xóa luôn cache localStorage (không chỉ biến trong bộ nhớ) — phòng trường hợp thiết bị dùng
     // chung, người khác đăng nhập vai trò khác ngay sau đó không bị hydrate nhầm dữ liệu vai trò cũ.
