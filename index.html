@@ -2,7 +2,14 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<!-- interactive-widget=resizes-visual (2026-07-20): user phản ánh tiêu đề tab + ô tìm kiếm
+     (position:fixed/sticky) bị "trượt" lên khi bàn phím ảo hiện — xác nhận lỗi CHỈ xảy ra khi bàn
+     phím hiện (đổi cả sang bàn phím Samsung vẫn lỗi), không liên quan tính năng tự-ẩn đã xóa. Mặc
+     định Chrome Android dùng resizes-content (thu nhỏ LUÔN layout viewport khi bàn phím hiện,
+     khiến vị trí % / tính toán top của phần tử fixed/sticky bị tính lại giữa chừng, gây cảm giác
+     "trượt"). resizes-visual giữ nguyên layout viewport, chỉ thu nhỏ vùng nhìn thấy thật (visual
+     viewport) — phần tử fixed/sticky không còn bị tính lại vị trí theo bàn phím nữa. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, interactive-widget=resizes-visual">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#1c4587">
 <meta name="mobile-web-app-capable" content="yes">
@@ -94,16 +101,7 @@
        luôn dính ở top:0 khi hiện, không cần chừa chỗ cho header phía trên như trước. */
     position: sticky; top: 0; z-index: 19; background: var(--bg);
     display: flex; gap: 5px; padding: 10px 8px 8px;
-    overflow: hidden; max-height: 64px; transition: max-height .16s ease-out, padding .16s ease-out;
-    will-change: max-height;
   }
-  /* "Ẩn thông minh" khi cuộn xuống (CONFIG_SETTINGS!SmartHideHeader) — thu chiều cao về 0 thay vì
-     translateY, vì tabbar dùng position:sticky (translateY trên phần tử sticky để lại khoảng
-     trống, không thực sự nhường chỗ cho nội dung bên dưới trồi lên). Rút ngắn thời gian animation
-     (.16s thay vì .22s, bỏ ease thường sang ease-out) để đỡ giật trên điện thoại yếu — animation
-     max-height buộc trình duyệt tính lại layout mỗi khung hình, thời gian càng ngắn thì số khung
-     hình phải tính càng ít (user phản ánh 2026-07-19: "cơ chế ẩn tab hơi giật"). */
-  .tabbar.scroll-hidden { max-height: 0; padding-top: 0; padding-bottom: 0; }
   .tab-btn {
     flex: 1; min-width: 0; padding: 8px 2px; border-radius: 10px; border: 1px solid var(--border);
     background: var(--surface); color: var(--text-muted); cursor: pointer; line-height: 1.15;
@@ -179,10 +177,13 @@
     background: var(--surface); border: 1px solid var(--border); border-radius: 26px;
     box-shadow: var(--shadow); transition: width .2s ease, opacity .15s ease;
   }
-  /* Rộng hơn bản trước (300px -> 400px, tăng thêm lần nữa vì nút lên/xuống to gấp đôi — user yêu
-     cầu 2026-07-20) để chứa thêm bộ đếm "x/y" + 2 nút lên/xuống, kiểu thanh tìm kiếm Ctrl+F của
-     Chrome. */
-  .search-bar.open { width: min(92vw, 400px); opacity: 1; pointer-events: auto; }
+  /* (2026-07-20) Đổi từ "min(92vw, 400px)" — bị tràn màn hình thật trên máy có chiều ngang hẹp
+     (user chụp màn hình xác nhận): .search-bar canh theo "right: 66px" nên PHẢI trừ đúng khoảng
+     đó (+ chút lề an toàn) khỏi 100vw mới chắc chắn không tràn, không thể chỉ dùng % màn hình đơn
+     thuần như trước. Dùng calc(100vw - 76px) (66px lề phải + 10px lề trái an toàn), giới hạn tối
+     đa 330px cho màn hình rộng — vẫn giữ NGUYÊN kích thước 2 nút lên/xuống 48px, chỉ ô nhập chữ co
+     lại nếu màn hình hẹp. */
+  .search-bar.open { width: min(calc(100vw - 76px), 330px); opacity: 1; pointer-events: auto; }
   .search-input-wrap { position: relative; display: flex; align-items: center; height: 100%; }
   .search-input-wrap svg.search-icon { position: absolute; left: 14px; opacity: .5; pointer-events: none; color: var(--text-muted); }
   .search-input-wrap input {
@@ -638,12 +639,10 @@
 (function () {
   var STORAGE_KEY = 'bc_webview_password';
   var currentPassword = localStorage.getItem(STORAGE_KEY) || '';
-  var LAST_TAB_KEY = 'bc_webview_last_tab';
-  // Khôi phục ĐÚNG tab đã xem lần trước thay vì luôn quay về "Dự án" — user yêu cầu 2026-07-20:
-  // mở lại app (kể cả sau khi bị hệ điều hành/Android tự giải phóng bộ nhớ nền, buộc tải lại từ
-  // đầu — hành vi này KHÔNG kiểm soát được từ code web, xem chú thích ở loadOverview()) nên cảm
-  // giác gần giống "vẫn ở nguyên chỗ cũ" nhất có thể.
-  var currentTab = localStorage.getItem(LAST_TAB_KEY) || 'projects';
+  // (2026-07-20) KHÔNG còn khôi phục tab đã xem lần trước qua localStorage — user yêu cầu bỏ,
+  // luôn mở "Dự án" mỗi khi vào app từ đầu/tải lại trang (chỉ giữ đúng tab đang xem khi app còn
+  // chạy nền, không load lại — trường hợp đó không cần code riêng, xem enterMain()).
+  var currentTab = 'projects';
   var deptDetailData = null;
   var currentDeptDetailCode = null; // Mã bộ phận đang xem chi tiết (null nếu đang ở lưới) — dùng để vẽ lại đúng khi dữ liệu nền cập nhật, xem refreshDeptDetailIfOpen_()
   var collapsedBanGroups = {}; // "Tên Ban" -> true nếu đang thu gọn — phải lưu NGOÀI renderProjectsFiltered() để không bị xóa mỗi khi gõ tìm kiếm làm render lại (lỗi Reviewer phát hiện 2026-07-19)
@@ -669,11 +668,6 @@
   var currentDeptName = null;
   var currentCanViewTKBC = false; // Suy ra từ CONFIG_SETTINGS!TKBC_Visible_Roles (Code.js) — KHÔNG hardcode role ở client nữa
   var currentCanViewProjectList = false; // Suy ra từ CONFIG_SETTINGS!DanhSachDA_Visible_Roles (Code.js)
-  var scrollHideEnabled = false; // Suy ra từ CONFIG_SETTINGS!SmartHideHeader (Code.js)
-  var tabbarScrollHidden = false;
-  var scrollLastY = 0;
-  var scrollDownRun = 0; // Tổng khoảng cách cuộn XUỐNG liên tục (reset ngay khi vuốt lên dù chỉ 1 chút)
-  var scrollTicking = false;
 
   // ---- Trạng thái riêng cho Tab GỬI BÁO CÁO (role "manager") — dùng lại currentPassword +
   // currentDeptCode đã có từ lúc đăng nhập, KHÔNG còn màn hình chọn bộ phận/nhập mật khẩu lần 2
@@ -1247,7 +1241,6 @@
         currentDeptName = res.deptName;
         currentCanViewTKBC = !!res.canViewTKBC;
         currentCanViewProjectList = !!res.canViewProjectList;
-        scrollHideEnabled = !!res.smartHideHeader;
         localStorage.setItem(STORAGE_KEY, pass);
         enterMain();
       })
@@ -1271,39 +1264,11 @@
     $('login-form-area').style.display = 'block';
   }
 
-  // Tự ẩn tabbar + ô tìm kiếm (nếu tab hiện tại có) khi cuộn XUỐNG một đoạn đủ dài (~1/3 chiều
-  // cao màn hình cộng dồn — không cần cuộn 1 mạch liên tục, chỉ cần KHÔNG đổi hướng giữa chừng),
-  // tự hiện lại NGAY khi cuộn LÊN dù chỉ 1 chút — user yêu cầu 2026-07-19, bật/tắt được qua
-  // CONFIG_SETTINGS!SmartHideHeader. Dùng max-height thay vì transform vì tabbar là
-  // position:sticky (xem CSS .tabbar) — translateY trên phần tử sticky để lại khoảng trống, không
-  // nhường thật chỗ cho nội dung bên dưới trồi lên.
-  // Ô tìm kiếm giờ NỔI CỐ ĐỊNH (position:fixed, xem CSS .search-bar/.search-fab) nên không còn
-  // ăn theo trạng thái ẩn/hiện của tabbar nữa — chỉ còn tabbar tự ẩn khi cuộn xuống.
-  function setTabbarScrollHidden_(hidden) {
-    if (tabbarScrollHidden === hidden) return;
-    tabbarScrollHidden = hidden;
-    $('tabbar').classList.toggle('scroll-hidden', hidden);
-  }
-
-  window.addEventListener('scroll', function () {
-    if (!scrollHideEnabled || scrollTicking) return;
-    scrollTicking = true;
-    window.requestAnimationFrame(function () {
-      scrollTicking = false;
-      var y = window.scrollY || document.documentElement.scrollTop || 0;
-      var diff = y - scrollLastY;
-      scrollLastY = y;
-      if (diff > 0) {
-        scrollDownRun += diff;
-        // Ngưỡng vuốt lên 1/4 chiều cao màn hình (trước là 1/3) — dễ ẩn hơn, đỡ phải vuốt dài mới
-        // thấy tác dụng (user yêu cầu 2026-07-19).
-        if (!tabbarScrollHidden && scrollDownRun > window.innerHeight / 4) setTabbarScrollHidden_(true);
-      } else if (diff < 0) {
-        scrollDownRun = 0;
-        if (tabbarScrollHidden) setTabbarScrollHidden_(false);
-      }
-    });
-  }, { passive: true });
+  // (2026-07-20) Tính năng "tự ẩn tabbar/ô tìm kiếm khi cuộn xuống" (SmartHideHeader) đã BỊ XÓA
+  // HẲN theo yêu cầu user — không dùng, nghi ngờ liên quan tới lỗi giao diện trượt khi bàn phím ảo
+  // hiện lên. Đã xác nhận KHÔNG PHẢI do tính năng này (user test với SmartHideHeader=FALSE vẫn còn
+  // lỗi, và lỗi chỉ xảy ra khi bàn phím hiện — xem thẻ <meta name="viewport"> đầu file, đã thêm
+  // interactive-widget=resizes-visual để xử lý đúng nguyên nhân thật).
 
   function enterMain() {
     pushRootHistoryIfNeeded_(); // Đẩy mốc lịch sử "gốc" ngay khi vào màn hình chính — xem giải thích ở khai báo hàm này (double-back-to-exit)
@@ -1343,23 +1308,15 @@
     // song song các tab khác bên dưới, vì switchTab() tự tăng các biến chống-race
     // (submitRequestId/priorityRequestId/tkbcRequestId/projectListRequestId) mỗi lần gọi — nếu nạp
     // các tab khác TRƯỚC rồi mới switchTab(), lệnh switchTab() sẽ VÔ TÌNH hủy ngay các yêu cầu vừa
-    // gửi đi (coi như "đã chuyển tab khác, kết quả cũ"). Mở lại ĐÚNG tab đã xem lần trước
-    // (currentTab đã khôi phục từ localStorage) nếu tab đó vẫn còn hợp lệ với vai trò hiện tại —
-    // không thì về "Dự án" (tab luôn hợp lệ với mọi vai trò).
-    var restoreTab = currentTab;
-    var restoreAllowed =
-      (restoreTab === 'projects' || restoreTab === 'departments') ||
-      (restoreTab === 'submit' && currentRole === 'manager') ||
-      (restoreTab === 'priority' && currentRole === 'btgd') ||
-      (restoreTab === 'tkbc' && currentCanViewTKBC) ||
-      (restoreTab === 'danhsachda' && currentCanViewProjectList);
-    // fromHistory=true: đây là tab MỞ ĐẦU sau đăng nhập, không phải 1 lượt "chuyển" thật để nhớ lại
-    // khi back — nếu không, trên thiết bị dùng chung, currentTab CŨ (sót từ phiên user/vai trò
-    // TRƯỚC, chưa từng bị reset) có thể khác với tab mở đầu của phiên MỚI này, vô tình bị đẩy vào
-    // tabHistoryStack; do switchTab() không tự kiểm tra quyền vai trò (chỉ ẩn nút bấm), 1 lần back
-    // sau đó có thể vô tình mở lại đúng tab của VAI TRÒ CŨ mà vai trò hiện tại không được xem (lỗi
-    // Reviewer phát hiện 2026-07-20).
-    switchTab(restoreAllowed ? restoreTab : 'projects', true);
+    // gửi đi (coi như "đã chuyển tab khác, kết quả cũ").
+    // (2026-07-20) LUÔN mở "Dự án" khi vào đây — đây là hàm chỉ chạy ở lần đăng nhập THẬT (mở app
+    // từ đầu/tải lại trang), KHÔNG chạy khi chỉ đưa app lên nền rồi mở lại (nhánh `if (mainEntered)
+    // return` phía trên đã chặn, giữ nguyên tab đang xem, không cần code riêng cho trường hợp đó) —
+    // đúng yêu cầu user: "thoát ứng dụng (không chạy nền) thì luôn vào tab Dự án, chỉ giữ tab cuối
+    // khi đang chạy nền". Trước đây khôi phục tab cuối qua localStorage cho CẢ trường hợp tải lại
+    // từ đầu — đã bỏ theo yêu cầu.
+    // fromHistory=true: tab mở đầu không phải 1 lượt "chuyển" cần nhớ lại khi back.
+    switchTab('projects', true);
     // Nạp dữ liệu của MỌI tab người dùng có quyền xem ngay khi vào app — hạn chế phải chờ khi
     // chuyển tab sau này (user yêu cầu 2026-07-19). Thứ tự ưu tiên: Dự án (đã nạp ở trên) -> Gửi
     // báo cáo/Ưu tiên -> Thống kê BC -> Danh sách DA. GIÃN CÁCH bằng setTimeout thay vì gọi dồn
@@ -1373,17 +1330,27 @@
     if (currentCanViewProjectList) setTimeout(showDanhSachDaTab, 900);
   }
 
-  // fromHistory=true: hàm này đang được gọi để QUAY LẠI 1 tab trước đó (do popstate xử lý
-  // tabHistoryStack) — KHÔNG đẩy thêm mốc lịch sử mới cho lượt quay lại này (nếu không, back xong
-  // 1 tab lại tự đẩy 1 mốc mới, biến back thành vô tác dụng — cứ back là lại có cái để back tiếp
-  // đúng chỗ vừa rời). Mặc định (bấm tay vào 1 nút tab): đẩy mốc lịch sử ghi nhớ tab ĐANG RỜI, để
-  // back quay lại đúng tab đó (user yêu cầu 2026-07-20: "chuyển từ tab Dự án sang tab Thống kê BC,
-  // nhấn back thì giao diện phải chuyển về tab Dự án").
+  // fromHistory=true: hàm này đang được gọi để QUAY VỀ Home (tab "Dự án") do popstate xử lý
+  // tabHistoryPushed — KHÔNG đẩy/tiêu thụ thêm mốc lịch sử nào nữa cho lượt gọi này (đã xử lý
+  // xong ở popstate). Mặc định (bấm tay vào 1 nút tab):
+  //   - Rời Home ('projects') sang tab khác -> đẩy ĐÚNG 1 mốc lịch sử (nếu chưa có sẵn — nhiều lần
+  //     rời Home rồi lại bấm tay quay lại chính giữa các tab con không được đẩy chồng thêm mốc,
+  //     xem nhánh dưới).
+  //   - Bấm tay quay THẲNG về Home khi đang có mốc "rời Home" treo (tabHistoryPushed=true) —
+  //     tiêu thụ luôn qua programmaticHistoryBack_() để không sót mốc vô nghĩa (giống cách đóng
+  //     tìm kiếm/chi tiết bộ phận bằng tay).
+  //   - Chuyển giữa 2 tab KHÔNG PHẢI Home (ví dụ Bộ phận -> Gửi báo cáo): không đụng gì tới lịch sử
+  //     — mốc "rời Home" hiện có (nếu có) vẫn giữ nguyên, back từ tab con nào cũng luôn về Home.
   function switchTab(tab, fromHistory) {
     var fromTab = currentTab;
-    if (!fromHistory && fromTab !== tab) {
-      tabHistoryStack.push(fromTab);
-      history.pushState({ view: 'tab' }, '');
+    if (!fromHistory) {
+      if (fromTab === 'projects' && tab !== 'projects' && !tabHistoryPushed) {
+        history.pushState({ view: 'tab' }, '');
+        tabHistoryPushed = true;
+      } else if (tab === 'projects' && tabHistoryPushed) {
+        tabHistoryPushed = false;
+        programmaticHistoryBack_();
+      }
     }
     openRequestId++; // Vô hiệu hóa mọi callback openDepartmentDetail đang chờ dữ liệu — tránh nó
                       // ghi đè topbar-sub/nội dung của tab vừa chuyển sang (đã xảy ra thật khi
@@ -1395,14 +1362,11 @@
     // LUÔN thoát khỏi view chi tiết bộ phận (nếu đang mở) khi chuyển tab — dù chuyển sang tab nào,
     // KỂ CẢ không phải "Bộ phận".
     backFromDeptDetail();
-    // Đưa trang về đầu + hiện lại tabbar/ô tìm kiếm mỗi khi đổi tab — vị trí cuộn của tab CŨ không
-    // còn ý nghĩa gì với tab MỚI (nội dung khác hẳn), để nguyên có thể khiến tab mới hiện dở dang
-    // (cuộn sẵn xuống giữa danh sách chưa kịp thấy) hoặc tabbar bị kẹt ẩn từ lần cuộn ở tab trước.
+    // Đưa trang về đầu mỗi khi đổi tab — vị trí cuộn của tab CŨ không còn ý nghĩa gì với tab MỚI
+    // (nội dung khác hẳn), để nguyên có thể khiến tab mới hiện dở dang (cuộn sẵn xuống giữa danh
+    // sách chưa kịp thấy).
     window.scrollTo(0, 0);
-    scrollLastY = 0; scrollDownRun = 0;
-    setTabbarScrollHidden_(false);
     currentTab = tab;
-    try { localStorage.setItem(LAST_TAB_KEY, tab); } catch (e) { /* localStorage đầy/bị chặn -> bỏ qua, không chặn chuyển tab */ }
     $('tab-btn-projects').classList.toggle('active', tab === 'projects');
     $('tab-btn-departments').classList.toggle('active', tab === 'departments');
     $('tab-btn-submit').classList.toggle('active', tab === 'submit');
@@ -1458,6 +1422,13 @@
       // thu gọn trước đó sẽ không thấy được (max-height:0 của .collapsed che mất, kể cả đã tô sáng
       // đúng chỗ) dù dự án có tồn tại. Chỉ áp dụng collapsedBanGroups khi KHÔNG tìm kiếm.
       var isCollapsed = !q && collapsedBanGroups[g.ban];
+      // (2026-07-20) Khi ĐANG tìm kiếm, ghi LUÔN trạng thái "đã mở rộng" này lại vào
+      // collapsedBanGroups (không chỉ đọc, còn GHI) — nếu không, lúc đóng tìm kiếm (q rỗng trở
+      // lại), các Ban đã thu gọn từ TRƯỚC lúc tìm kiếm sẽ tự đóng lại, đổi tổng chiều cao trang,
+      // khiến vị trí cuộn hiện tại rơi vào đúng chỗ khác hẳn — cảm giác "giao diện nhảy vị trí"
+      // đúng lỗi user phản ánh 2026-07-20. Ghi 1 lần là ĐỦ, vĩnh viễn coi như đã mở (người dùng có
+      // thể tự thu gọn lại tay sau đó nếu muốn, không mất quyền thu gọn).
+      if (q) collapsedBanGroups[g.ban] = false;
       html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
       if (g.ban) {
         html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
@@ -1715,6 +1686,13 @@
       // Dùng CHUNG collapsedBanGroups với Tab Dự án — thu gọn 1 Ban ở tab nào cũng đồng bộ sang
       // tab kia, và LUÔN mở rộng khi đang tìm kiếm (giống hệt cơ chế Tab Dự án).
       var isCollapsed = !q && collapsedBanGroups[g.ban];
+      // (2026-07-20) Khi ĐANG tìm kiếm, ghi LUÔN trạng thái "đã mở rộng" này lại vào
+      // collapsedBanGroups (không chỉ đọc, còn GHI) — nếu không, lúc đóng tìm kiếm (q rỗng trở
+      // lại), các Ban đã thu gọn từ TRƯỚC lúc tìm kiếm sẽ tự đóng lại, đổi tổng chiều cao trang,
+      // khiến vị trí cuộn hiện tại rơi vào đúng chỗ khác hẳn — cảm giác "giao diện nhảy vị trí"
+      // đúng lỗi user phản ánh 2026-07-20. Ghi 1 lần là ĐỦ, vĩnh viễn coi như đã mở (người dùng có
+      // thể tự thu gọn lại tay sau đó nếu muốn, không mất quyền thu gọn).
+      if (q) collapsedBanGroups[g.ban] = false;
       html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
       if (g.ban) {
         html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
@@ -1771,14 +1749,15 @@
     history.back();
   }
 
-  // (2026-07-20) Nhớ tab đã xem TRƯỚC khi chuyển sang tab hiện tại — bấm back sẽ quay lại đúng tab
-  // đó (nhiều tầng, giống ngăn xếp lịch sử trình duyệt thật) thay vì thoát thẳng/nhảy về tầng gốc.
-  // Mỗi lần chuyển tab THẬT (tap tay hoặc quay lại từ lịch sử) đều dùng ĐÚNG 1 hàm switchTab() — vì
-  // vậy animation/hành vi hiển thị GIỐNG Y HỆT bấm tay, không cần thêm hiệu ứng riêng cho trường
-  // hợp back (user yêu cầu 2026-07-20: "animation chuyển tab... giống với thao tác lấy tay chạm
-  // vào tab" — bản thân switchTab() hiện KHÔNG có animation trượt nào, chỉ đổi display block/none
-  // tức thời, nên tái dùng nguyên hàm này cho back là cách chắc chắn nhất để đảm bảo giống nhau).
-  var tabHistoryStack = [];
+  // (2026-07-20) Tab "Dự án" là HOME — mọi tab khác đều CHỈ 1 bước rời khỏi Home (không phải 1
+  // ngăn xếp nhiều tầng): rời Home sang tab X nào cũng chỉ đẩy ĐÚNG 1 mốc lịch sử duy nhất; back từ
+  // BẤT KỲ tab nào (Bộ phận, Gửi báo cáo, Thống kê BC, Danh sách DA) đều quay THẲNG về Dự án, không
+  // đi qua tab trung gian đã từng ghé (user yêu cầu 2026-07-20: "coi tab Dự án là Home, không thể
+  // back từ Home về các tab khác" — và ngược lại, từ tab khác back luôn về Home). Đang ở Dự án thì
+  // back tiếp theo rơi thẳng vào logic double-back-to-exit ở mốc gốc, không còn gì để "lùi" nữa.
+  // Dùng cờ đơn (giống searchHistoryPushed/deptDetailHistoryPushed) thay vì mảng nhiều tầng như
+  // bản trước — đơn giản hơn NHIỀU và khớp đúng mô hình "Home + các tab con phẳng" này.
+  var tabHistoryPushed = false;
 
   // (2026-07-20) "Chạm back lần nữa để thoát" — thay vì để back/vuốt lùi thoát thẳng app ngay lần
   // đầu (user phản ánh: "trong khi sử dụng rất nhiều người thoát nhầm", phải đăng nhập lại mỗi lần
@@ -1798,7 +1777,7 @@
     // visibilitychange/setTimeout re-arm ở dưới có thể chạy đúng lúc đó (lỗi Reviewer phát hiện
     // 2026-07-20). Khi có tầng khác đang mở, không cần bảo vệ gốc — tầng đó tự có mốc riêng, gốc
     // sẽ được đẩy lại đúng lúc SAU khi tầng đó đóng hết (popstate rơi tới nhánh gốc mới gọi hàm này).
-    if (searchHistoryPushed || deptDetailHistoryPushed || tabHistoryStack.length > 0) return;
+    if (searchHistoryPushed || deptDetailHistoryPushed || tabHistoryPushed) return;
     history.pushState({ view: 'root' }, '');
     rootHistoryPushed = true;
   }
@@ -1832,9 +1811,9 @@
       resetDeptDetailView_();
       return;
     }
-    if (tabHistoryStack.length > 0) {
-      var prevTab = tabHistoryStack.pop();
-      switchTab(prevTab, true); // fromHistory=true -> không đẩy thêm mốc mới cho lượt quay lại này
+    if (tabHistoryPushed) {
+      tabHistoryPushed = false;
+      switchTab('projects', true); // fromHistory=true -> không đẩy thêm mốc mới cho lượt quay lại này
       return;
     }
     // Không còn tầng JS nào đang mở -> mốc "gốc" vừa bị tiêu thụ -> người dùng đang thật sự cố
@@ -2355,6 +2334,13 @@
       totalProjects += projects.length;
       var banGroupId = 'priority-ban-group-' + gi;
       var isCollapsed = !q && collapsedBanGroups[g.ban];
+      // (2026-07-20) Khi ĐANG tìm kiếm, ghi LUÔN trạng thái "đã mở rộng" này lại vào
+      // collapsedBanGroups (không chỉ đọc, còn GHI) — nếu không, lúc đóng tìm kiếm (q rỗng trở
+      // lại), các Ban đã thu gọn từ TRƯỚC lúc tìm kiếm sẽ tự đóng lại, đổi tổng chiều cao trang,
+      // khiến vị trí cuộn hiện tại rơi vào đúng chỗ khác hẳn — cảm giác "giao diện nhảy vị trí"
+      // đúng lỗi user phản ánh 2026-07-20. Ghi 1 lần là ĐỦ, vĩnh viễn coi như đã mở (người dùng có
+      // thể tự thu gọn lại tay sau đó nếu muốn, không mất quyền thu gọn).
+      if (q) collapsedBanGroups[g.ban] = false;
       html += '<div class="ban-group' + (isCollapsed ? ' collapsed' : '') + '" id="' + banGroupId + '">';
       if (g.ban) {
         html += '<div class="ban-title-row' + (g.isPriority ? ' priority' : '') + '" data-ban-group="' + banGroupId + '" data-ban-name="' + escapeHtml(g.ban) + '">' +
@@ -2649,7 +2635,7 @@
     // 2026-07-20, cùng loại với deptDetailHistoryPushed ở trên).
     searchHistoryPushed = false;
     if (rootExitRearmTimer) { clearTimeout(rootExitRearmTimer); rootExitRearmTimer = null; }
-    tabHistoryStack = []; // Cùng lý do — mảng tab đã rời của phiên TRƯỚC không còn ý nghĩa gì sau khi đăng xuất
+    tabHistoryPushed = false; // Cùng lý do — mốc "rời Home" của phiên TRƯỚC không còn ý nghĩa gì sau khi đăng xuất
     pendingProgrammaticBack = 0;
     currentDeptDetailCode = null;
     // Xóa luôn cache localStorage (không chỉ biến trong bộ nhớ) — phòng trường hợp thiết bị dùng
