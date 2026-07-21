@@ -196,12 +196,11 @@
      như "1 thanh đứng màu xanh đậm ở cuối ô nhập liệu" — đúng lỗi user chụp màn hình phản ánh
      2026-07-20. Bản thân .search-bar.open đã có viền + đổi màu nút tròn để báo hiệu đang mở, không
      cần thêm viền focus nữa. */
-  /* :not(.add-project-search-wrap) — class .search-input-wrap CÒN được picker "+ Thêm dự án"
-     dùng lại (ô tìm kiếm KHÁC, không tự focus + không nằm trong khung overflow:hidden khít cạnh
-     nên không hề bị lỗi viền cắt như 5 ô tìm kiếm chính) — nếu tắt outline chung cho cả
-     .search-input-wrap sẽ vô tình xóa luôn dấu hiệu tiêu điểm duy nhất của ô đó (lỗi Reviewer
-     phát hiện 2026-07-20). */
-  .search-input-wrap:not(.add-project-search-wrap) input:focus-visible { outline: none; }
+  /* (2026-07-20) Áp dụng cho CẢ ô tìm kiếm trong picker "+ Thêm dự án" (.add-project-search-wrap)
+     — trước đó cố ý CHỪA lại viền tiêu điểm cho ô này (không bị lỗi cắt viền như 5 ô tìm kiếm
+     chính nên giữ lại làm dấu hiệu accessibility), nhưng user phản ánh chính viền đó là "lỗi hiển
+     thị" (ô này tự focus ngay khi mở picker) — bỏ theo đúng yêu cầu. */
+  .search-input-wrap input:focus-visible { outline: none; }
   /* Bộ đếm "x/y" + nút lên/xuống chuyển kết quả — nằm bên phải ô nhập, cùng 1 hàng (giống thanh
      tìm kiếm Ctrl+F của Chrome trên desktop). */
   .search-nav { display: flex; align-items: center; flex-shrink: 0; padding-right: 2px; }
@@ -693,7 +692,9 @@
   var addProjectListResp = null; // Kết quả webviewGetProjectListForAdd, preload NGẦM sau khi Tab Gửi báo cáo tải xong
   var addProjectPreloadTimer = null;
   var sessionAddedIds = {}; // "Mã dự án" -> true — CHỈ các dự án vừa thêm trong phiên này mới được phép xóa lại
-  var addProjectInFlight = false;
+  // "Mã dự án" -> "Tên dự án" — các dự án đã thêm ở client nhưng CHƯA có dòng NHAPBC thật, cần tạo
+  // (ghi "Tên dự án") đúng lúc bấm "Gửi báo cáo" (xem doSubmitReports/webviewSubmitReports).
+  var pendingNewProjectNames = {};
 
   // ---- Trạng thái riêng cho Tab ƯU TIÊN (role "btgd") ----
   var priorityMapResp = null; // Kết quả webviewGetPriorityList ({ok, map: "Mã dự án"->"1".."5"})
@@ -727,11 +728,9 @@
   // webviewSetPriority — payload có thể khá dài) dùng Content-Type: text/plain để tránh CORS
   // preflight (Apps Script không tự xử lý được request OPTIONS, xem doPost ở Code.js).
   var API_BASE = 'https://script.google.com/macros/s/AKfycbyMUgkfpMN3DNvty64pQ6ZA7U4AMnPN0ScjIi0oLjOr45PA4XD7ctakN10w2IR2e0pm8g/exec';
-  // webviewAddProject/webviewDeleteAddedProject (2026-07-20) cũng là lệnh ghi dữ liệu (thêm/xóa
-  // dòng NHAPBC) — phải nằm trong POST_ACTIONS như webviewSubmitReports/webviewSetPriority, nếu
-  // không mật khẩu bộ phận + tên/mã dự án sẽ lọt vào URL (query string), lộ trong execution log/
-  // lịch sử trình duyệt — đúng lỗ hổng Reviewer phát hiện 2026-07-20.
-  var POST_ACTIONS = { webviewSubmitReports: true, webviewSetPriority: true, webviewAddProject: true, webviewDeleteAddedProject: true };
+  // (2026-07-20) webviewAddProject/webviewDeleteAddedProject đã bị xóa — thêm/xóa dự án giờ là
+  // thao tác thuần client, không còn gọi server nữa (xem onSelectAddProject/onRemoveAddedProjectClick).
+  var POST_ACTIONS = { webviewSubmitReports: true, webviewSetPriority: true };
   function callServer(action, args) {
     var isPost = !!POST_ACTIONS[action];
     var url = isPost ? API_BASE : (API_BASE + '?action=' + encodeURIComponent(action) + '&args=' + encodeURIComponent(JSON.stringify(args || [])));
@@ -875,22 +874,23 @@
 
   function $(id) { return document.getElementById(id); }
 
-  // (2026-07-20) Bù trừ vị trí các phần tử fixed/sticky (nút tròn tìm kiếm, thanh tìm kiếm, dải
-  // tab) khi bàn phím ảo hiện — user xác nhận thẻ <meta interactive-widget=resizes-visual> KHÔNG
-  // đủ khắc phục hoàn toàn (có thể do phiên bản Chrome/WebView cụ thể không tôn trọng đầy đủ), lỗi
-  // chỉ xảy ra khi bàn phím hiện (đổi bàn phím khác vẫn lỗi -> chắc chắn không phải do 1 ứng dụng
-  // bàn phím cụ thể). Dùng trực tiếp VisualViewport API — offsetTop báo ĐÚNG khoảng "vùng nhìn
-  // thấy thật" đã trôi so với layout viewport gốc (bất kể lý do gì gây ra, kể cả do bàn phím) —
-  // dịch NGƯỢC lại đúng khoảng đó bằng transform để 3 nhóm phần tử này luôn neo đúng vị trí NHÌN
-  // THẤY ĐƯỢC, không phụ thuộc trình duyệt/phiên bản cụ thể có tôn trọng interactive-widget hay
-  // không (cách này chủ động 100%, không cần trình duyệt hỗ trợ tính năng nào thêm ngoài
-  // VisualViewport — đã hỗ trợ rộng rãi từ lâu).
+  // (2026-07-20) Bù trừ vị trí các phần tử position:fixed (nút tròn tìm kiếm, thanh tìm kiếm) khi
+  // bàn phím ảo hiện — user xác nhận thẻ <meta interactive-widget=resizes-visual> KHÔNG đủ khắc
+  // phục hoàn toàn cho các phần tử NÀY (lỗi chỉ xảy ra khi bàn phím hiện, đổi bàn phím khác vẫn
+  // lỗi -> chắc chắn không phải do 1 ứng dụng bàn phím cụ thể). Dùng trực tiếp VisualViewport API —
+  // offsetTop báo ĐÚNG khoảng "vùng nhìn thấy thật" đã trôi so với layout viewport gốc — dịch
+  // NGƯỢC lại đúng khoảng đó bằng transform để 2 phần tử fixed này luôn neo đúng vị trí NHÌN THẤY
+  // ĐƯỢC.
+  // KHÔNG áp dụng cho #tabbar (position:sticky, khác hẳn fixed) — thử áp transform tương tự ở lần
+  // sửa trước gây phản tác dụng: tabbar bị giật và chìm dưới thanh tìm kiếm (user phản ánh
+  // 2026-07-20), vì transform CHỒNG thêm lên cơ chế định vị sticky vốn đã tự hoạt động đúng theo
+  // layout viewport (không đổi khi có interactive-widget=resizes-visual) — sticky không cần bù trừ
+  // gì thêm, để nguyên nó tự lo.
   if (window.visualViewport) {
     var syncFixedToVisualViewport_ = function () {
       var offset = window.visualViewport.offsetTop || 0;
       var t = offset ? 'translateY(' + offset + 'px)' : '';
       $('search-fab').style.transform = t;
-      $('tabbar').style.transform = t;
       var bars = document.querySelectorAll('.search-bar');
       for (var i = 0; i < bars.length; i++) bars[i].style.transform = t;
     };
@@ -1072,6 +1072,14 @@
   // sử vừa pushState() ở trên ĐÃ bị tiêu thụ bởi chính thao tác đó rồi, KHÔNG được gọi history.back()
   // thêm lần nữa (sẽ tiêu thụ NHẦM mốc lịch sử của tầng khác, ví dụ chi tiết bộ phận bên dưới).
   function closeSearchOverlay_(clear, fromPopstate) {
+    // (2026-07-20) Lưu vị trí cuộn TRƯỚC khi làm bất cứ gì — đóng tìm kiếm thật (clear=true) sẽ rời
+    // focus khỏi ô nhập, khiến bàn phím ảo TRƯỢT XUỐNG; trình duyệt tự ý cuộn lại trang theo cách
+    // riêng khi bàn phím đóng (khác hẳn lỗi "quay về vị trí lúc mở tìm kiếm" đã sửa bằng
+    // scrollRestoration='manual' ở trên — đây là 1 hành vi RIÊNG của trình duyệt khi bàn phím ẩn,
+    // không liên quan gì tới lịch sử điều hướng). User phản ánh 2026-07-20: "danh sách dự án bị
+    // trôi xuống khi bàn phím trượt xuống". Ép cuộn lại ĐÚNG vị trí này sau khi animation ẩn bàn
+    // phím kết thúc (xem bên dưới).
+    var savedScrollY = window.scrollY;
     searchOverlayOpen = false;
     $('search-fab').classList.remove('open');
     var bars = document.querySelectorAll('.search-bar.open');
@@ -1086,6 +1094,12 @@
       var id = getActiveSearchInputId_();
       if (id) searchWasOpenByTab[id] = false;
       if (id && $(id).value) { $(id).value = ''; triggerSearchRerender_(id); }
+      // Chủ động rời focus (thay vì để trình duyệt tự quyết định lúc nào) để bắt đầu ẩn bàn phím
+      // NGAY, rồi đợi hết khoảng thời gian animation ẩn bàn phím thường thấy (~300ms) mới ép cuộn
+      // lại đúng vị trí đã lưu — không có sự kiện chuẩn nào báo "bàn phím đã ẩn xong" nên dùng mốc
+      // thời gian cố định, đủ dư so với animation thực tế trên đa số thiết bị.
+      if (id) $(id).blur();
+      setTimeout(function () { window.scrollTo(0, savedScrollY); }, 350);
     }
   }
 
@@ -2115,8 +2129,9 @@
   }
 
   // =========================================================================
-  // THÊM / XÓA DỰ ÁN (Tab Gửi báo cáo, 2026-07-20) — xem Code.js webviewGetProjectListForAdd/
-  // webviewAddProject/webviewDeleteAddedProject.
+  // THÊM / XÓA DỰ ÁN (Tab Gửi báo cáo, 2026-07-20) — thao tác THUẦN CLIENT (không gọi server),
+  // việc ghi thật vào NHAPBC dời tới lúc bấm "Gửi báo cáo" — xem Code.js webviewGetProjectListForAdd
+  // (đọc danh sách gốc) + webviewSubmitReports tham số "newProjects" (ghi Tên dự án).
   // =========================================================================
 
   // (2026-07-20) Nối "+ Thêm dự án" vào cơ chế back — trước đây bấm back/chuyển tab lúc picker
@@ -2181,7 +2196,7 @@
       if (existingIds[p.id]) continue;
       if (q && !((p.name && p.name.toLowerCase().indexOf(q) !== -1) || (p.id && p.id.toLowerCase().indexOf(q) !== -1))) continue;
       shown++;
-      html += '<button type="button" class="add-project-item" data-project-name="' + escapeHtml(p.name) + '">' +
+      html += '<button type="button" class="add-project-item" data-project-id="' + escapeHtml(p.id) + '" data-project-name="' + escapeHtml(p.name) + '">' +
         '<div class="project-name">' + escapeHtml(p.name) + '</div>' +
         '<div class="project-sub">' + escapeHtml(p.id) + '</div></button>';
     }
@@ -2190,65 +2205,49 @@
     for (var k = 0; k < items.length; k++) items[k].addEventListener('click', onSelectAddProject);
   }
 
+  // (2026-07-20) Thêm dự án giờ là thao tác THUẦN CLIENT — KHÔNG gọi server nữa. "Mã dự án" đã
+  // biết trước (lấy thẳng từ danh sách gốc do server cung cấp lúc mở picker, webviewGetProjectListForAdd
+  // — đây là dự án CÓ SẴN trong danh mục công ty, chỉ chưa có dòng NHAPBC cho kỳ báo cáo này, không
+  // phải tạo mã mới). Việc GHI THẬT "Tên dự án" vào NHAPBC dời hẳn tới lúc bấm "Gửi báo cáo" (xem
+  // doSubmitReports() + Code.js webviewSubmitReports tham số newProjects) — trước đây gọi server
+  // ngay khi bấm chọn khiến người dùng phải chờ ~10s mỗi lần thêm/xóa dù chỉ là thao tác giao diện
+  // (user phản ánh 2026-07-20).
   function onSelectAddProject(e) {
-    if (addProjectInFlight) return;
+    var projectId = e.currentTarget.getAttribute('data-project-id');
     var projectName = e.currentTarget.getAttribute('data-project-name');
-    addProjectInFlight = true;
-    var items = document.querySelectorAll('#add-project-list .add-project-item');
-    for (var i = 0; i < items.length; i++) items[i].disabled = true;
-    callServer('webviewAddProject', [currentDeptCode, currentPassword, projectName])
-      .then(function (res) {
-        addProjectInFlight = false;
-        if (!res.ok) {
-          showToast(res.error || 'Thêm dự án thất bại.', true);
-          var itemsRetry = document.querySelectorAll('#add-project-list .add-project-item');
-          for (var j = 0; j < itemsRetry.length; j++) itemsRetry[j].disabled = false;
-          return;
-        }
-        if (!submitProjectsResp || !submitProjectsResp.ok) return; // Đã đăng xuất trong lúc chờ
-        submitProjectsResp.projects.push({ id: res.id, name: res.name, values: res.values || {} });
-        sessionAddedIds[res.id] = true;
-        closeAddProjectPicker();
-        renderSubmitFiltered();
-        updateSubmitBar();
-        showToast('Đã thêm "' + res.name + '" — điền báo cáo rồi bấm "Gửi báo cáo" như bình thường.');
-      })
-      .catch(function (err) {
-        addProjectInFlight = false;
-        showToast('Lỗi kết nối: ' + err.message, true);
-        var itemsErr = document.querySelectorAll('#add-project-list .add-project-item');
-        for (var m = 0; m < itemsErr.length; m++) itemsErr[m].disabled = false;
-      });
+    if (!submitProjectsResp || !submitProjectsResp.ok) return;
+    submitProjectsResp.projects.push({ id: projectId, name: projectName, values: {} });
+    sessionAddedIds[projectId] = true;
+    pendingNewProjectNames[projectId] = projectName; // Ghi nhớ: cần tạo dòng NHAPBC cho id này lúc Gửi báo cáo
+    closeAddProjectPicker();
+    renderSubmitFiltered();
+    updateSubmitBar();
   }
 
+  // Xóa dự án mới thêm — cũng THUẦN CLIENT, KHÔNG gọi server: vì chưa từng ghi bất kỳ thứ gì lên
+  // NHAPBC (việc ghi dời tới lúc Gửi báo cáo), "xóa" ở đây chỉ đơn giản là bỏ khỏi danh sách đang
+  // hiện + quên yêu cầu "cần tạo dòng" đã ghi nhớ, không có gì trên server cần dọn cả.
   function onRemoveAddedProjectClick(e) {
     e.stopPropagation();
-    if (addProjectInFlight) return;
     var projectId = e.currentTarget.getAttribute('data-project');
-    addProjectInFlight = true;
-    var btn = e.currentTarget;
-    btn.disabled = true;
-    callServer('webviewDeleteAddedProject', [currentDeptCode, currentPassword, projectId])
-      .then(function (res) {
-        addProjectInFlight = false;
-        if (!res.ok) { showToast(res.error || 'Xóa dự án thất bại.', true); btn.disabled = false; return; }
-        if (!submitProjectsResp || !submitProjectsResp.ok) return;
-        submitProjectsResp.projects = submitProjectsResp.projects.filter(function (p) { return p.id !== projectId; });
-        delete sessionAddedIds[projectId];
-        delete pendingEdits[projectId];
-        renderSubmitFiltered();
-        updateSubmitBar();
-      })
-      .catch(function (err) {
-        addProjectInFlight = false;
-        showToast('Lỗi kết nối: ' + err.message, true);
-        btn.disabled = false;
-      });
+    if (!submitProjectsResp || !submitProjectsResp.ok) return;
+    submitProjectsResp.projects = submitProjectsResp.projects.filter(function (p) { return p.id !== projectId; });
+    delete sessionAddedIds[projectId];
+    delete pendingNewProjectNames[projectId];
+    delete pendingEdits[projectId];
+    renderSubmitFiltered();
+    updateSubmitBar();
   }
 
   function doSubmitReports() {
     var edits = Object.keys(pendingEdits).map(function (id) { return { id: id, values: pendingEdits[id] }; });
     if (edits.length === 0) return;
+    // (2026-07-20) Dự án mới thêm qua "+ Thêm dự án" nhưng CHƯA có dòng NHAPBC (id có trong
+    // pendingNewProjectNames) — CHỈ đưa vào newProjects (yêu cầu server tạo dòng) nếu dự án đó
+    // THẬT SỰ có nội dung báo cáo đang gửi (cũng có mặt trong edits) — chọn thêm rồi không gõ gì,
+    // bấm Gửi báo cáo thì KHÔNG tự tạo 1 dòng trống vô nghĩa cho dự án đó.
+    var newProjects = edits.filter(function (edit) { return pendingNewProjectNames[edit.id]; })
+      .map(function (edit) { return { id: edit.id, name: pendingNewProjectNames[edit.id] }; });
     // Chốt chặn KHÔNG cho gửi chồng lần 2 khi lần trước còn đang chạy — server (Control) xử lý
     // 1 lượt gửi mất TỰ NHIÊN khoảng 30-40s (ghi RAM + render INBC + render THBC), không phải lỗi.
     // Trước đây không có chốt này, người dùng thấy màn hình chờ lâu tưởng bị treo nên bấm gửi lại
@@ -2272,7 +2271,7 @@
     // ô nhập vẫn khóa cho tới khi có phản hồi thật để phòng trường hợp gửi thất bại (user yêu cầu
     // 2026-07-19: cảnh báo 5s ngay khi bấm + khóa UI cho tới khi xử lý xong).
     showToast('Đã gửi báo cáo, hệ thống đang xử lý (khoảng 30-40s)...');
-    callServer('webviewSubmitReports', [currentDeptCode, currentPassword, edits])
+    callServer('webviewSubmitReports', [currentDeptCode, currentPassword, edits, newProjects])
       .then(function (res) {
         submitInFlight = false;
         btn.disabled = false;
@@ -2283,6 +2282,10 @@
         // submitProjectsResp về null) — callback này vẫn chạy khi phản hồi về tới, không được đụng
         // vào submitProjectsResp.projects nếu nó đã bị xóa (lỗi Reviewer phát hiện 2026-07-19).
         if (!submitProjectsResp) return;
+        // Các dự án mới vừa được server tạo dòng NHAPBC thành công trong lượt gửi này — không còn
+        // "chờ tạo dòng" nữa, xóa khỏi pendingNewProjectNames (nếu không xóa, lần gửi SAU sẽ lại
+        // tưởng cần tạo dòng mới cho dự án đã có dòng thật rồi, ghi trùng).
+        newProjects.forEach(function (np) { delete pendingNewProjectNames[np.id]; });
         // Cập nhật NGAY giá trị gốc (baseline) từ chính dữ liệu vừa gửi thành công — KHÔNG gọi lại
         // loadMyProjects() để tải lại từ server nữa. Trước đây gọi lại ngay sau khi gửi, bắt người
         // dùng chờ THÊM 1 lượt tải nặng (mở lại file bộ phận, dò lại cấu hình) NGAY SAU lượt gửi
@@ -2682,7 +2685,7 @@
     overviewResp = null; deptListResp = null; deptMapResp = null; deptDetailData = null;
     mainEntered = false;
     submitProjectsResp = null; pendingEdits = {}; submitInFlight = false;
-    addProjectListResp = null; sessionAddedIds = {}; addProjectInFlight = false;
+    addProjectListResp = null; sessionAddedIds = {}; pendingNewProjectNames = {};
     if (addProjectPreloadTimer) { clearTimeout(addProjectPreloadTimer); addProjectPreloadTimer = null; }
     priorityMapResp = null; pendingPriority = {}; priorityInFlight = false;
     tkbcResp = null; tkbcNeedsRefresh = false;
